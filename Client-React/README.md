@@ -1,16 +1,77 @@
-# React + Vite
+# AI Outreach Platform - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Modern React frontend for the AI-powered outreach and meeting automation platform.
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Landing Page**: Beautiful, animated hero section with waitlist form
+- **Admin Dashboard**: Comprehensive management interface
+- **Scraping Monitor**: Real-time job tracking
+- **Campaign Manager**: AI-powered email campaigns
+- **Meeting Scheduler**: Google Calendar integration
+- **Lead Database**: Recruiter and student management
+- **Analytics Dashboard**: Performance metrics and charts
 
-## React Compiler
+## 🛠️ Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **React 18** with hooks
+- **Vite** for blazing-fast dev experience
+- **TailwindCSS** for styling
+- **ShadCN/UI** component library
+- **Framer Motion** for animations
+- **React Query** for data fetching
+- **React Router** for navigation
+- **Recharts** for data visualization
+- **Axios** for API calls
 
-## Expanding the ESLint configuration
+## 📦 Installation
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` and set your backend API URL.
+
+3. **Start development server:**
+   ```bash
+   npm run dev
+   ```
+
+The application will start at `http://localhost:5173`
+
+## 🏗️ Project Structure
+
+```
+Client-React/
+├── src/
+│   ├── components/
+│   │   ├── ui/              # ShadCN UI components
+│   │   └── layout/          # Dashboard layout
+│   ├── pages/               # All page components
+│   ├── lib/                 # Utilities and API client
+│   ├── App.jsx              # Main app & routes
+│   ├── main.jsx             # Entry point
+│   └── index.css            # Global styles
+├── package.json
+├── vite.config.js
+└── tailwind.config.js
+```
+
+## 🔗 API Integration
+
+The frontend connects to the Express.js backend at `http://localhost:5000/api`.
+
+## 🚀 Build for Production
+
+```bash
+npm run build
+```
+
+## 📝 License
+
+MIT
