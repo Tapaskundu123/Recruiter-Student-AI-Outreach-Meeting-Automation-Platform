@@ -77,7 +77,7 @@ const config = {
 export function validateConfig() {
     const required = [
         'DATABASE_URL',
-        'OPENAI_API_KEY'
+        'GEMINI_API_KEY'
     ];
 
     const missing = required.filter(key => {

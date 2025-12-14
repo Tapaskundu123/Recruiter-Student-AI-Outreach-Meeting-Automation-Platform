@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Sparkles, Zap, Users, Calendar, Mail, TrendingUp, ArrowRight } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -14,16 +14,16 @@ export default function LandingPage() {
         university: '',
         major: '',
         graduationYear: '',
-        country: ''
+        country: '',
+        linkedin: ''  // Fixed: lowercase 'l'
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [waitlistCount, setWaitlistCount] = useState(0);
 
-    // Fetch waitlist count on mount
-    useState(() => {
-        api.getWaitlistCount().then(res => {
-            setWaitlistCount(res.data.count);
-        }).catch(console.error);
+    useEffect(() => {
+        api.getWaitlistCount()
+            .then(res => setWaitlistCount(res.data.count))
+            .catch(console.error);
     }, []);
 
     const handleSubmit = async (e) => {
@@ -33,7 +33,16 @@ export default function LandingPage() {
         try {
             await api.joinWaitlist(formData);
             toast.success('Successfully joined the waitlist! 🎉');
-            setFormData({ name: '', email: '', university: '', major: '', graduationYear: '', country: '' });
+            // Reset all fields including linkedin
+            setFormData({
+                name: '',
+                email: '',
+                university: '',
+                major: '',
+                graduationYear: '',
+                country: '',
+                linkedin: ''
+            });
             setWaitlistCount(prev => prev + 1);
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to join waitlist. Please try again.');
@@ -201,6 +210,18 @@ export default function LandingPage() {
                                     </div>
                                 </div>
 
+                                <div className="grid grid-cols-1">
+                                    <Label htmlFor="linkedin" className="text-white">LinkedIn Profile URL</Label>
+                                    <Input
+                                        id="linkedin"
+                                        type="url"
+                                        value={formData.linkedin}
+                                        onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })}
+                                        className="mt-1 bg-white/5 border-white/10 text-white placeholder:text-slate-400"
+                                        placeholder="https://www.linkedin.com/in/johndoe"
+                                    />
+                                </div>
+
                                 <Button
                                     type="submit"
                                     disabled={isSubmitting}
@@ -253,7 +274,7 @@ export default function LandingPage() {
             <footer className="relative py-12 px-6 border-t border-white/10">
                 <div className="max-w-7xl mx-auto text-center">
                     <p className="text-slate-400">
-                        &copy; 2024 AI Outreach Platform. Built for the future of recruitment.
+                        &copy; 2025 AI Outreach Platform. Built for the future of recruitment.
                     </p>
                 </div>
             </footer>
