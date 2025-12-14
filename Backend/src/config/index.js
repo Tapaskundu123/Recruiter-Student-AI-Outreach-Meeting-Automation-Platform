@@ -1,17 +1,6 @@
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-// Resolve Backend/.env relative to this file so env loads regardless of cwd
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const envPath = path.resolve(__dirname, '../../.env');
-
-const dotenvResult = dotenv.config({ path: envPath });
-if (dotenvResult.error) {
-    // Do not throw here — allow process.env to contain values set externally, but warn
-    console.warn(`dotenv: could not load ${envPath} — ${dotenvResult.error.message}`);
-}
+dotenv.config();
 
 const config = {
     // Server
@@ -29,7 +18,7 @@ const config = {
 
     // OpenAI
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-    GEMINI_MODEL: process.env.GEMINI_MODEL || 'gpt-4-turbo-preview',
+    GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
 
     // Email
     EMAIL_SERVICE: process.env.EMAIL_SERVICE || 'smtp',
@@ -88,17 +77,17 @@ const config = {
 export function validateConfig() {
     const required = [
         'DATABASE_URL',
-        'GEMINI_API_KEY'
+        'OPENAI_API_KEY'
     ];
 
     const missing = required.filter(key => {
         const keys = key.split('.');
         let value = config;
         for (const k of keys) {
-            if (value === undefined || value === null) return true;
             value = value[k];
+            if (!value) return true;
         }
-        return value === undefined || value === null || value === '';
+        return false;
     });
 
     if (missing.length > 0) {
