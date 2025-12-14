@@ -1,22 +1,25 @@
-import OpenAI from 'openai';
-import config from '../config/index.js';
-import Handlebars from 'handlebars';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import config from "../config/index.js";
+import Handlebars from "handlebars";
 
-const openai = new OpenAI({
-    apiKey: config.OPENAI_API_KEY
+const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
+
+const model = genAI.getGenerativeModel({
+  model: config.GEMINI_MODEL || "gemini-1.5-flash",
 });
 
 /**
- * Personalize email template using AI
+ * Personalize email template using Gemini AI
  */
 export async function personalizeEmail({ template, recipientData }) {
-    try {
-        // First, compile Handlebars template with basic data
-        const compiledTemplate = Handlebars.compile(template);
-        const basicEmail = compiledTemplate(recipientData);
+  try {
+    // Compile Handlebars template first
+    const compiledTemplate = Handlebars.compile(template);
+    const basicEmail = compiledTemplate(recipientData);
 
-        // Then enhance with AI personalization
-        const prompt = `Personalize this email for the recipient. Make it engaging and natural while maintaining professionalism.
+    const prompt = `
+You are an expert email copywriter.
+Personalize the following email while keeping it professional and natural.
 
 Recipient Information:
 ${JSON.stringify(recipientData, null, 2)}
@@ -26,74 +29,79 @@ ${basicEmail}
 
 Instructions:
 - Add a personalized greeting
-- Reference specific details about the recipient (company, university, role, etc.)
+- Reference recipient-specific details (company, university, role, etc.)
 - Keep the core message intact
-- Make it feel personal, not automated
-- Return only the personalized email content (HTML format)`;
+- Make it feel human, not automated
+- Return ONLY the personalized email content in valid HTML
+`;
 
-        const response = await openai.chat.completions.create({
-            model: config.OPENAI_MODEL,
-            messages: [
-                {
-                    role: 'system',
-                    content: 'You are an expert email copywriter. Personalize emails to make them engaging and relevant to each recipient.'
-                },
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ],
-            temperature: 0.7,
-            max_tokens: 1000
-        });
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 1000,
+      },
+    });
 
-        return response.choices[0].message.content;
-    } catch (error) {
-        console.error('Email personalization error:', error.message);
-        // Fallback to basic template if AI fails
-        const compiledTemplate = Handlebars.compile(template);
-        return compiledTemplate(recipientData);
-    }
+    return result.response.text().trim();
+  } catch (error) {
+    console.error("Email personalization error (Gemini):", error.message);
+
+    // Fallback → basic Handlebars template
+    const compiledTemplate = Handlebars.compile(template);
+    return compiledTemplate(recipientData);
+  }
 }
 
 /**
- * Generate email subject line using AI
+ * Generate email subject line using Gemini
  */
 export async function generateSubject({ recipientData, campaignGoal }) {
-    try {
-        const prompt = `Generate a compelling email subject line.
+  try {
+    const prompt = `
+You are an expert email marketer.
+Generate a short, compelling email subject line (under 60 characters).
 
-Recipient: ${recipientData.name}
-${recipientData.company ? `Company: ${recipientData.company}` : ''}
-${recipientData.university ? `University: ${recipientData.university}` : ''}
-Campaign Goal: ${campaignGoal}
+Recipient:
+Name: ${recipientData.name || "Recipient"}
+${recipientData.company ? `Company: ${recipientData.company}` : ""}
+${recipientData.university ? `University: ${recipientData.university}` : ""}
 
-Create a short, engaging subject line (under 60 characters) that will make them want to open the email.`;
+Campaign Goal:
+${campaignGoal}
 
-        const response = await openai.chat.completions.create({
-            model: config.OPENAI_MODEL,
-            messages: [
-                {
-                    role: 'system',
-                    content: 'You are an expert email marketer. Create compelling subject lines that drive opens.'
-                },
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ],
-            temperature: 0.8,
-            max_tokens: 50
-        });
+Rules:
+- Keep it engaging
+- No emojis unless professional
+- Return ONLY the subject line
+`;
 
-        return response.choices[0].message.content.replace(/"/g, '').trim();
-    } catch (error) {
-        console.error('Subject generation error:', error.message);
-        return `Hello ${recipientData.name}`;
-    }
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.8,
+        maxOutputTokens: 50,
+      },
+    });
+
+    return result.response.text().replace(/"/g, "").trim();
+  } catch (error) {
+    console.error("Subject generation error (Gemini):", error.message);
+    return `Hello ${recipientData.name || ""}`.trim();
+  }
 }
 
 export default {
-    personalizeEmail,
-    generateSubject
+  personalizeEmail,
+  generateSubject,
 };

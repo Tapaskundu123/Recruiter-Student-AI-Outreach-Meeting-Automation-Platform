@@ -1,136 +1,151 @@
-import OpenAI from 'openai';
-import config from '../config/index.js';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import config from "../config/index.js";
 
-const openai = new OpenAI({
-    apiKey: config.OPENAI_API_KEY
+const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
+
+const model = genAI.getGenerativeModel({
+  model: config.GEMINI_MODEL || "gemini-1.5-flash",
 });
 
 /**
- * Clean and enrich scraped data using AI
+ * Clean and enrich scraped data using Gemini
  */
 export async function cleanAndEnrichData(rawData, dataType) {
-    const cleaned = [];
+  const cleaned = [];
 
-    for (const record of rawData) {
-        try {
-            const result = await cleanSingleRecord(record, dataType);
-            if (result) {
-                cleaned.push(result);
-            }
-        } catch (error) {
-            console.error('Error cleaning record:', error.message);
-        }
+  for (const record of rawData) {
+    try {
+      const result = await cleanSingleRecord(record, dataType);
+      if (result) cleaned.push(result);
+    } catch (error) {
+      console.error("Error cleaning record:", error.message);
     }
+  }
 
-    return cleaned;
+  return cleaned;
 }
 
 /**
- * Clean a single record using GPT
+ * Clean a single record using Gemini
  */
 async function cleanSingleRecord(record, dataType) {
-    try {
-        const prompt = dataType === 'recruiter'
-            ? createRecruiterPrompt(record)
-            : createStudentPrompt(record);
+  try {
+    const prompt =
+      dataType === "recruiter"
+        ? createRecruiterPrompt(record)
+        : createStudentPrompt(record);
 
-        const response = await openai.chat.completions.create({
-            model: config.OPENAI_MODEL,
-            messages: [
-                {
-                    role: 'system',
-                    content: 'You are a data cleaning assistant. Clean and normalize the provided data, fix any errors, and extract structured information. Return only valid JSON.'
-                },
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ],
-            temperature: 0.3,
-            response_format: { type: 'json_object' }
-        });
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: `
+You are a data cleaning assistant.
+Clean and normalize the provided data, fix errors, and extract structured information.
+Return ONLY valid JSON.
 
-        const cleanedData = JSON.parse(response.choices[0].message.content);
+${prompt}
+              `,
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.3,
+      },
+    });
 
-        // Validate required fields
-        if (!cleanedData.email || !isValidEmail(cleanedData.email)) {
-            return null;
-        }
+    const text = result.response.text();
 
-        return {
-            ...cleanedData,
-            scrapedAt: new Date()
-        };
-    } catch (error) {
-        console.error('OpenAI cleaning error:', error.message);
-        return null;
+    // Gemini sometimes wraps JSON in ```json
+    const jsonString = text.replace(/```json|```/g, "").trim();
+    const cleanedData = JSON.parse(jsonString);
+
+    // Validate required fields
+    if (!cleanedData.email || !isValidEmail(cleanedData.email)) {
+      return null;
     }
+
+    return {
+      ...cleanedData,
+      scrapedAt: new Date(),
+    };
+  } catch (error) {
+    console.error("Gemini cleaning error:", error.message);
+    return null;
+  }
 }
 
 /**
- * Create prompt for recruiter data
+ * Recruiter prompt
  */
 function createRecruiterPrompt(record) {
-    return `Clean and normalize this recruiter data:
+  return `
+Clean and normalize this recruiter data:
 ${JSON.stringify(record, null, 2)}
 
-Extract and return JSON with these fields:
-- name: (properly capitalized full name)
-- email: (validated email address)
-- company: (company name)
-- jobTitle: (job title/role)
-- linkedIn: (LinkedIn URL if available)
-- country: (country name)
-- field: (industry/field like Technology, Finance, Healthcare)
+Return JSON with:
+- name
+- email
+- company
+- jobTitle
+- linkedIn
+- country
+- field (Technology, Finance, Healthcare, etc.)
 
-If any field is missing or invalid, omit it or set to null.`;
+Use null if unknown.
+`;
 }
 
 /**
- * Create prompt for student data
+ * Student prompt
  */
 function createStudentPrompt(record) {
-    return `Clean and normalize this student data:
+  return `
+Clean and normalize this student data:
 ${JSON.stringify(record, null, 2)}
 
-Extract and return JSON with these fields:
-- name: (properly capitalized full name)
-- email: (validated email address)
-- university: (university name)
-- major: (field of study if available)
-- graduationYear: (estimated graduation year as integer, if determinable)
-- country: (country name if available)
-- linkedIn: (LinkedIn URL if available)
+Return JSON with:
+- name
+- email
+- university
+- major
+- graduationYear (integer)
+- country
+- linkedIn
 
-If any field is missing or invalid, omit it or set to null.`;
+Use null if unknown.
+`;
 }
 
 /**
- * Validate email format
+ * Email validation
  */
 function isValidEmail(email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
 }
 
 /**
- * Detect duplicate records
+ * Detect duplicate records by email
  */
 export async function detectDuplicates(records) {
-    const emailSet = new Set();
-    const unique = [];
+  const emailSet = new Set();
+  const unique = [];
 
-    for (const record of records) {
-        if (!emailSet.has(record.email)) {
-            emailSet.add(record.email);
-            unique.push(record);
-        }
+  for (const record of records) {
+    if (!emailSet.has(record.email)) {
+      emailSet.add(record.email);
+      unique.push(record);
     }
+  }
 
-    return unique;
+  return unique;
 }
 
 export default {
-    cleanAndEnrichData,
-    detectDuplicates
+  cleanAndEnrichData,
+  detectDuplicates,
 };

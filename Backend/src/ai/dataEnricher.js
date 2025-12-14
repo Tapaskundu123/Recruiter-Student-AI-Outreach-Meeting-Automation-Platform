@@ -1,86 +1,103 @@
-import OpenAI from 'openai';
-import config from '../config/index.js';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import config from "../config/index.js";
 
-const openai = new OpenAI({
-    apiKey: config.OPENAI_API_KEY
+const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
+
+const model = genAI.getGenerativeModel({
+  model: config.GEMINI_MODEL || "gemini-1.5-flash",
 });
 
 /**
- * Enrich profile data with additional context
+ * Enrich profile data with additional context (Gemini)
  */
 export async function enrichProfile(profileData, profileType) {
-    try {
-        const prompt = profileType === 'recruiter'
-            ? createRecruiterEnrichmentPrompt(profileData)
-            : createStudentEnrichmentPrompt(profileData);
+  try {
+    const prompt =
+      profileType === "recruiter"
+        ? createRecruiterEnrichmentPrompt(profileData)
+        : createStudentEnrichmentPrompt(profileData);
 
-        const response = await openai.chat.completions.create({
-            model: config.OPENAI_MODEL,
-            messages: [
-                {
-                    role: 'system',
-                    content: 'You are a research assistant. Provide additional context and insights about profiles based on available information.'
-                },
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ],
-            temperature: 0.5,
-            response_format: { type: 'json_object' }
-        });
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: `
+You are a research assistant.
+Provide additional context and insights about profiles based on available information.
+Return ONLY valid JSON.
 
-        const enrichedData = JSON.parse(response.choices[0].message.content);
+${prompt}
+              `,
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.5,
+      },
+    });
 
-        return {
-            ...profileData,
-            enrichedData: enrichedData
-        };
-    } catch (error) {
-        console.error('Profile enrichment error:', error.message);
-        return profileData;
-    }
+    const text = result.response.text();
+
+    // Remove ```json wrapper if Gemini adds it
+    const jsonString = text.replace(/```json|```/g, "").trim();
+    const enrichedData = JSON.parse(jsonString);
+
+    return {
+      ...profileData,
+      enrichedData,
+    };
+  } catch (error) {
+    console.error("Profile enrichment error (Gemini):", error.message);
+    return profileData;
+  }
 }
 
 /**
- * Create enrichment prompt for recruiter
+ * Recruiter enrichment prompt
  */
 function createRecruiterEnrichmentPrompt(profile) {
-    return `Based on this recruiter profile, infer additional context:
+  return `
+Based on this recruiter profile, infer additional context.
 
 Profile:
 ${JSON.stringify(profile, null, 2)}
 
 Return JSON with:
-- industry: (likely industry based on company/title)
-- seniority: (entry/mid/senior/executive level)
-- specializations: (array of recruiting specializations like "tech", "executive", etc.)
-- companySize: (startup/small/medium/large/enterprise - if company is known)
-- likelyInterests: (array of professional interests)
-- outreachTips: (brief tips for effective outreach)
+- industry
+- seniority (entry/mid/senior/executive)
+- specializations (array)
+- companySize (startup/small/medium/large/enterprise)
+- likelyInterests (array)
+- outreachTips (string)
 
-Only include what can be reasonably inferred. Use null for unknowns.`;
+Only infer what is reasonable. Use null if unknown.
+`;
 }
 
 /**
- * Create enrichment prompt for student
+ * Student enrichment prompt
  */
 function createStudentEnrichmentPrompt(profile) {
-    return `Based on this student profile, infer additional context:
+  return `
+Based on this student profile, infer additional context.
 
 Profile:
 ${JSON.stringify(profile, null, 2)}
 
 Return JSON with:
-- academicLevel: (undergraduate/graduate/phd)
-- careerInterests: (array of likely career interests based on major)
-- skills: (array of likely skills based on major/university)
-- industryFit: (array of industries that match their background)
-- outreachTips: (brief tips for effective outreach to this student)
+- academicLevel (undergraduate/graduate/phd)
+- careerInterests (array)
+- skills (array)
+- industryFit (array)
+- outreachTips (string)
 
-Only include what can be reasonably inferred. Use null for unknowns.`;
+Only infer what is reasonable. Use null if unknown.
+`;
 }
 
 export default {
-    enrichProfile
+  enrichProfile,
 };

@@ -17,8 +17,8 @@ const config = {
     REDIS_PORT: parseInt(process.env.REDIS_PORT, 10) || 6379,
 
     // OpenAI
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-    OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    GEMINI_MODEL: process.env.GEMINI_MODEL || 'gpt-4-turbo-preview',
 
     // Email
     EMAIL_SERVICE: process.env.EMAIL_SERVICE || 'smtp',
@@ -77,7 +77,7 @@ const config = {
 export function validateConfig() {
     const required = [
         'DATABASE_URL',
-        'OPENAI_API_KEY'
+        'GEMINI_API_KEY'
     ];
 
     const missing = required.filter(key => {

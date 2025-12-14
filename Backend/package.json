@@ -23,6 +23,7 @@
   "author": "F1jobs",
   "license": "MIT",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.7.1",
     "bcryptjs": "^2.4.3",
     "bull": "^4.12.0",
@@ -42,6 +43,7 @@
     "morgan": "^1.10.0",
     "nodemailer": "^6.9.7",
     "openai": "^4.20.1",
+    "pg": "^8.16.3",
     "playwright": "^1.40.1",
     "redis": "^4.6.11",
     "sanitize-html": "^2.11.0",
