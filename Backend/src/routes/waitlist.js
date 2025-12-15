@@ -1,12 +1,13 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import prisma from '../db/client.js';
+import { sendWaitlistEmail } from '../utils/mailer.js';
 
 const router = express.Router();
 
 /**
  * POST /api/waitlist
- * Add student to waitlist
+ * Add student to waitlist + send confirmation email
  */
 router.post(
     '/',
@@ -16,29 +17,29 @@ router.post(
         body('phone').optional().trim(),
         body('university').optional().trim(),
         body('major').optional().trim(),
-        body('graduationYear').optional().isInt({ min: 2020, max: 2030 }),
+        body('graduationYear').optional().isInt({ min: 2020, max: 2035 }).toInt(),
         body('country').optional().trim(),
-        body('linkedIn').optional().isURL().withMessage('LinkedIn must be a valid URL')
+        body('linkedin').optional().isURL({ require_protocol: true }).withMessage('Valid LinkedIn URL required')
     ],
     async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        const {
+            name,
+            email,
+            phone,
+            university,
+            major,
+            graduationYear,
+            country,
+            linkedin // Fixed key name to match frontend (was 'linkedIn' in old code)
+        } = req.body;
+
         try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) {
-                return res.status(400).json({ errors: errors.array() });
-            }
-
-            const {
-                name,
-                email,
-                phone,
-                university,
-                major,
-                graduationYear,
-                country,
-                linkedIn
-            } = req.body;
-
-            // Check if student already exists
+            // Check for duplicate email
             const existingStudent = await prisma.student.findUnique({
                 where: { email }
             });
@@ -50,35 +51,59 @@ router.post(
                 });
             }
 
-            // Create new student
+            // Create student in database
             const student = await prisma.student.create({
                 data: {
                     name,
                     email,
-                    phone,
-                    university,
-                    major,
-                    graduationYear: graduationYear ? parseInt(graduationYear) : null,
-                    country,
-                    linkedIn,
-                    status: 'waitlist'
+                    phone: phone || null,
+                    university: university || null,
+                    major: major || null,
+                    graduationYear: graduationYear || null,
+                    country: country || null,
+                    linkedIn: linkedin || null, // Matches your Prisma schema field name
+                    status: 'waitlist',
+                    waitlistJoinedAt: new Date() // Explicitly set (though default exists)
                 }
             });
 
-            res.status(201).json({
+            // Send confirmation email (fire-and-forget: don't block response if email fails)
+            sendWaitlistEmail({
+                to: student.email,
+                name: student.name,
+                university: student.university,
+                linkedIn: student.linkedIn
+            }).catch(emailError => {
+                console.error('Failed to send waitlist confirmation email:', emailError);
+                // Optional: log to monitoring tool (e.g., Sentry)
+                // Do NOT throw — we already succeeded in saving to DB
+            });
+
+            // Respond immediately with success
+            return res.status(201).json({
                 success: true,
-                message: 'Successfully joined the waitlist!',
+                message: 'Successfully joined the waitlist! Check your email for confirmation.',
                 data: {
                     id: student.id,
                     name: student.name,
                     email: student.email
                 }
             });
+
         } catch (error) {
-            console.error('Waitlist error:', error);
-            res.status(500).json({
+            console.error('Waitlist registration error:', error);
+
+            // Handle unique constraint violation separately (in case of race condition)
+            if (error.code === 'P2002') {
+                return res.status(409).json({
+                    error: 'Already registered',
+                    message: 'This email is already on the waitlist'
+                });
+            }
+
+            return res.status(500).json({
                 error: 'Server error',
-                message: 'Failed to join waitlist. Please try again.'
+                message: 'Failed to join waitlist. Please try again later.'
             });
         }
     }
@@ -86,7 +111,6 @@ router.post(
 
 /**
  * GET /api/waitlist/count
- * Get total waitlist count
  */
 router.get('/count', async (req, res) => {
     try {
@@ -100,16 +124,12 @@ router.get('/count', async (req, res) => {
         });
     } catch (error) {
         console.error('Count error:', error);
-        res.status(500).json({
-            error: 'Server error',
-            message: 'Failed to fetch waitlist count'
-        });
+        res.status(500).json({ error: 'Failed to fetch count' });
     }
 });
 
 /**
  * GET /api/waitlist/stats
- * Get waitlist statistics (optional - for landing page)
  */
 router.get('/stats', async (req, res) => {
     try {
@@ -118,35 +138,26 @@ router.get('/stats', async (req, res) => {
             prisma.student.groupBy({
                 by: ['country'],
                 where: { status: 'waitlist', country: { not: null } },
-                _count: true,
+                _count: { country: true },
                 orderBy: { _count: { country: 'desc' } },
                 take: 10
             }),
             prisma.student.groupBy({
                 by: ['graduationYear'],
                 where: { status: 'waitlist', graduationYear: { not: null } },
-                _count: true,
+                _count: { graduationYear: true },
                 orderBy: { graduationYear: 'asc' }
             })
         ]);
 
         res.json({
             total,
-            topCountries: byCountry.map(item => ({
-                country: item.country,
-                count: item._count
-            })),
-            byGraduationYear: byGraduationYear.map(item => ({
-                year: item.graduationYear,
-                count: item._count
-            }))
+            topCountries: byCountry.map(c => ({ country: c.country, count: c._count.country })),
+            byGraduationYear: byGraduationYear.map(g => ({ year: g.graduationYear, count: g._count.graduationYear }))
         });
     } catch (error) {
         console.error('Stats error:', error);
-        res.status(500).json({
-            error: 'Server error',
-            message: 'Failed to fetch statistics'
-        });
+        res.status(500).json({ error: 'Failed to fetch stats' });
     }
 });
 

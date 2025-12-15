@@ -6,13 +6,86 @@ import { addScrapingJob } from '../jobs/scrapingJobs.js';
 const router = express.Router();
 
 /**
+ * POST /api/scrapers/bulk
+ * Start bulk scraping job with multiple platforms
+ */
+router.post(
+    '/bulk',
+    [
+        body('countries').isArray().withMessage('Countries must be an array'),
+        body('fields').optional().isArray(),
+        body('platforms').optional().isArray(),
+        body('targetCount').optional().isInt({ min: 1 })
+    ],
+    async (req, res) => {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
+            }
+
+            const { countries, fields = [], platforms = ['all'], targetCount = 500 } = req.body;
+
+            // Create scraping logs for both recruiter and student
+            const recruiterLog = await prisma.scrapingLog.create({
+                data: {
+                    jobType: 'recruiter',
+                    target: platforms.join(', '),
+                    status: 'running'
+                }
+            });
+
+            const studentLog = await prisma.scrapingLog.create({
+                data: {
+                    jobType: 'student',
+                    target: platforms.join(', '),
+                    status: 'running'
+                }
+            });
+
+            // Add jobs to queue
+            const recruiterJob = await addScrapingJob({
+                type: 'recruiter',
+                logId: recruiterLog.id,
+                target: 'all',
+                countries,
+                fields
+            });
+
+            const studentJob = await addScrapingJob({
+                type: 'student',
+                logId: studentLog.id,
+                target: 'all',
+                countries,
+                fields
+            });
+
+            res.status(202).json({
+                success: true,
+                message: 'Bulk scraping jobs started',
+                jobs: [
+                    { type: 'recruiter', jobId: recruiterJob.id, logId: recruiterLog.id },
+                    { type: 'student', jobId: studentJob.id, logId: studentLog.id }
+                ]
+            });
+        } catch (error) {
+            console.error('Bulk scraper start error:', error);
+            res.status(500).json({
+                error: 'Server error',
+                message: 'Failed to start bulk scraping jobs'
+            });
+        }
+    }
+);
+
+/**
  * POST /api/scrapers/recruiters
  * Start recruiter scraping job
  */
 router.post(
     '/recruiters',
     [
-        body('target').notEmpty().withMessage('Target platform/URL is required'),
+        body('target').optional().isString(),
         body('countries').optional().isArray(),
         body('fields').optional().isArray()
     ],
@@ -23,7 +96,7 @@ router.post(
                 return res.status(400).json({ errors: errors.array() });
             }
 
-            const { target, countries, fields } = req.body;
+            const { target = 'all', countries = ['USA', 'Canada', 'Australia'], fields = [] } = req.body;
 
             // Create scraping log
             const log = await prisma.scrapingLog.create({
@@ -66,8 +139,9 @@ router.post(
 router.post(
     '/students',
     [
-        body('target').notEmpty().withMessage('Target platform/URL is required'),
-        body('countries').optional().isArray()
+        body('target').optional().isString(),
+        body('countries').optional().isArray(),
+        body('fields').optional().isArray()
     ],
     async (req, res) => {
         try {
@@ -76,7 +150,7 @@ router.post(
                 return res.status(400).json({ errors: errors.array() });
             }
 
-            const { target, countries } = req.body;
+            const { target = 'all', countries = ['USA', 'Canada', 'Australia'], fields = [] } = req.body;
 
             // Create scraping log
             const log = await prisma.scrapingLog.create({
@@ -92,7 +166,8 @@ router.post(
                 type: 'student',
                 logId: log.id,
                 target,
-                countries
+                countries,
+                fields
             });
 
             res.status(202).json({
@@ -203,5 +278,41 @@ router.get(
         }
     }
 );
+
+/**
+ * GET /api/scrapers/stats
+ * Get scraping statistics
+ */
+router.get('/stats', async (req, res) => {
+    try {
+        const [totalRecruiters, totalStudents, recentLogs, platformStats] = await Promise.all([
+            prisma.recruiter.count(),
+            prisma.student.count(),
+            prisma.scrapingLog.findMany({
+                where: { status: 'completed' },
+                orderBy: { completedAt: 'desc' },
+                take: 5
+            }),
+            // Get records by platform
+            prisma.recruiter.groupBy({
+                by: ['platform'],
+                _count: true
+            })
+        ]);
+
+        res.json({
+            totalRecruiters,
+            totalStudents,
+            recentLogs,
+            platformBreakdown: platformStats
+        });
+    } catch (error) {
+        console.error('Stats fetch error:', error);
+        res.status(500).json({
+            error: 'Server error',
+            message: 'Failed to fetch scraping stats'
+        });
+    }
+});
 
 export default router;

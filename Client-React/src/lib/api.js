@@ -12,7 +12,6 @@ const apiClient = axios.create({
 // Request interceptor
 apiClient.interceptors.request.use(
     (config) => {
-        // Add auth token if available
         const token = localStorage.getItem('auth_token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -27,7 +26,6 @@ apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            // Handle unauthorized
             localStorage.removeItem('auth_token');
             window.location.href = '/login';
         }
@@ -43,10 +41,12 @@ export const api = {
     getWaitlistStats: () => apiClient.get('/waitlist/stats'),
 
     // Scrapers
+    bulkScrape: (data) => apiClient.post('/scrapers/bulk', data),
     startRecruiterScraping: (data) => apiClient.post('/scrapers/recruiters', data),
     startStudentScraping: (data) => apiClient.post('/scrapers/students', data),
     getScrapingStatus: (logId) => apiClient.get(`/scrapers/status/${logId}`),
     getScrapingLogs: (params) => apiClient.get('/scrapers/logs', { params }),
+    getScrapingStats: () => apiClient.get('/scrapers/stats'),
 
     // Campaigns
     createCampaign: (data) => apiClient.post('/campaigns', data),
@@ -72,6 +72,7 @@ export const api = {
     // Admin
     getRecruiters: (params) => apiClient.get('/admin/recruiters', { params }),
     getStudents: (params) => apiClient.get('/admin/students', { params }),
+    getAdminStats: () => apiClient.get('/admin/stats'),
     exportRecruiters: () => apiClient.post('/admin/export/recruiters'),
     exportStudents: () => apiClient.post('/admin/export/students'),
     deleteRecruiter: (id) => apiClient.delete(`/admin/recruiters/${id}`),

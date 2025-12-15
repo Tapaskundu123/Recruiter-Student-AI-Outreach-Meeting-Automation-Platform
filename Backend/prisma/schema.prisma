@@ -17,9 +17,16 @@ model Recruiter {
   linkedIn      String?
   country       String?
   field         String?   // e.g., "Technology", "Finance", "Healthcare"
+  platform      String?   // e.g., "GitHub", "Indeed", "Glassdoor", "Company Website"
   status        String    @default("active") // active, inactive, bounced
   scrapedAt     DateTime  @default(now())
   enrichedData  Json?     // Additional AI-enriched data
+
+  // Google Calendar Integration
+  googleRefreshToken String?
+  googleAccessToken  String?
+  googleTokenExpiry  DateTime?
+  googleCalendarId   String?   @default("primary")
   
   // Relations
   campaigns     CampaignRecipient[]
@@ -43,6 +50,8 @@ model Student {
   major             String?
   graduationYear    Int?
   country           String?
+  degree            String?   // e.g., "B.Tech", "M.Tech", "BCA"
+  platform          String?   // e.g., "GitHub", "University Directory"
   linkedIn          String?
   resume            String?   // URL or path to resume
   status            String    @default("waitlist") // waitlist, contacted, scheduled, completed

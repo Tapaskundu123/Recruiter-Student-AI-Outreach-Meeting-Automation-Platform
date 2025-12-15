@@ -6,6 +6,8 @@ import CampaignManager from './pages/CampaignManager';
 import MeetingScheduler from './pages/MeetingScheduler';
 import LeadManager from './pages/LeadManager';
 import Analytics from './pages/Analytics';
+import PublicBookingPage from './pages/PublicBookingPage';
+import ConnectCalendar from './components/ConnectCalendar';
 
 function App() {
   return (
@@ -17,6 +19,8 @@ function App() {
       <Route path="/admin/meetings" element={<MeetingScheduler />} />
       <Route path="/admin/leads" element={<LeadManager />} />
       <Route path="/admin/analytics" element={<Analytics />} />
+      <Route path="/book/:recruiterId" element={<PublicBookingPage />} />
+      <Route path="/dashboard/:recruiterId" element={<ConnectCalendar />} />
     </Routes>
   );
 }
