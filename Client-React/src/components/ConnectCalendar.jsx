@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, MapPin, Menu, Plus, Search, Settings, User } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, MapPin, Menu, Plus, Search, Settings, User, Sparkles } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import axios from 'axios';
+import EventCreationModal from './EventCreationModal';
 import {
     format, startOfMonth, endOfMonth, eachDayOfInterval,
     getDay, addMonths, subMonths, isSameDay, isToday,
@@ -32,6 +33,8 @@ const ConnectCalendar = ({ embeddedRecruiterId }) => {
     const [events, setEvents] = useState([]);
     const [showSidebar, setShowSidebar] = useState(true);
     const [interviews, setInterviews] = useState([]);
+    const [showEventModal, setShowEventModal] = useState(false);
+    const [selectedDateForEvent, setSelectedDateForEvent] = useState(null);
 
     // --- ACTIONS ---
     const createTestEvent = async () => {
@@ -212,9 +215,15 @@ const ConnectCalendar = ({ embeddedRecruiterId }) => {
                 {/* Sidebar */}
                 {showSidebar && (
                     <aside className="w-64 border-r flex flex-col p-4 hidden md:flex bg-white">
-                        <Button className="w-32 rounded-full h-12 shadow-lg mb-6 bg-white hover:bg-gray-50 text-gray-700 border flex items-center gap-2 pl-3 justify-start">
-                            <span className="text-3xl font-light text-red-500">+</span>
-                            <span className="font-medium">Create</span>
+                        <Button
+                            onClick={() => {
+                                setSelectedDateForEvent(new Date());
+                                setShowEventModal(true);
+                            }}
+                            className="w-40 rounded-full h-12 shadow-lg hover:shadow-xl mb-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0 flex items-center gap-2 pl-4 justify-start transform hover:scale-105 transition-all duration-300"
+                        >
+                            <Sparkles className="w-5 h-5" />
+                            <span className="font-semibold">Create Event</span>
                         </Button>
 
                         {/* Mini Calendar (Static for visual) */}
@@ -264,11 +273,25 @@ const ConnectCalendar = ({ embeddedRecruiterId }) => {
 
                 {/* Main Calendar View */}
                 <main className="flex-1 overflow-y-auto bg-white">
-                    {view === 'month' && <MonthView currentDate={currentDate} events={events} interviews={interviews} />}
+                    {view === 'month' && <MonthView currentDate={currentDate} events={events} interviews={interviews} onDateClick={(date) => {
+                        setSelectedDateForEvent(date);
+                        setShowEventModal(true);
+                    }} />}
                     {view === 'week' && <WeekView currentDate={currentDate} events={events} />}
                     {view === 'day' && <DayView currentDate={currentDate} events={events} />}
                 </main>
             </div>
+
+            {/* Event Creation Modal */}
+            <EventCreationModal
+                isOpen={showEventModal}
+                onClose={() => setShowEventModal(false)}
+                selectedDate={selectedDateForEvent || new Date()}
+                recruiterId={recruiterId}
+                onEventCreated={() => {
+                    fetchEvents(); // Refresh calendar
+                }}
+            />
         </div>
     );
 };
@@ -276,10 +299,11 @@ const ConnectCalendar = ({ embeddedRecruiterId }) => {
 
 // --- SUB COMPONENTS ---
 
-const MonthView = ({ currentDate, events, interviews = [] }) => {
+const MonthView = ({ currentDate, events, interviews = [], onDateClick }) => {
     const start = startOfWeek(startOfMonth(currentDate));
     const end = endOfWeek(endOfMonth(currentDate));
     const days = eachDayOfInterval({ start, end });
+    const [hoveredDay, setHoveredDay] = useState(null);
 
     return (
         <div className="h-full flex flex-col">
@@ -295,10 +319,34 @@ const MonthView = ({ currentDate, events, interviews = [] }) => {
                     const dayEvents = events.filter(e => isSameDay(parseISO(e.start), day));
                     const dayInterviews = interviews.filter(e => isSameDay(parseISO(e.start), day));
                     const hasInterviews = dayInterviews.length > 0;
+                    const isHovered = hoveredDay === i;
+                    const isPast = day < startOfDay(new Date());
+                    const isCurrentMonth = isSameMonth(day, currentDate);
+
                     return (
-                        <div key={day.toISOString()} className={`border-b border-r min-h-[100px] p-1 flex flex-col hover:bg-gray-50 ${isSameMonth(day, currentDate) ? 'bg-white' : 'bg-gray-50/50'} ${hasInterviews ? 'ring-2 ring-indigo-200 ring-inset' : ''}`}>
+                        <div
+                            key={day.toISOString()}
+                            onClick={() => !isPast && isCurrentMonth && onDateClick && onDateClick(day)}
+                            onMouseEnter={() => setHoveredDay(i)}
+                            onMouseLeave={() => setHoveredDay(null)}
+                            className={`
+                                border-b border-r min-h-[100px] p-1 flex flex-col relative
+                                ${isSameMonth(day, currentDate) ? 'bg-white' : 'bg-gray-50/50'}
+                                ${hasInterviews ? 'ring-2 ring-indigo-200 ring-inset' : ''}
+                                ${!isPast && isCurrentMonth ? 'cursor-pointer' : 'cursor-default'}
+                                ${isHovered && !isPast && isCurrentMonth ? 'bg-gradient-to-br from-indigo-50 to-purple-50 ring-2 ring-indigo-300 ring-inset' : 'hover:bg-gray-50'}
+                                transition-all duration-200
+                            `}
+                        >
+                            {/* Hover Plus Icon */}
+                            {isHovered && !isPast && isCurrentMonth && (
+                                <div className="absolute top-2 right-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full p-1 shadow-lg animate-in fade-in zoom-in duration-200">
+                                    <Plus className="w-3 h-3" />
+                                </div>
+                            )}
+
                             <div className="text-center mb-1 relative">
-                                <span className={`text-xs p-1 rounded-full ${isToday(day) ? 'bg-blue-600 text-white px-2' : 'text-gray-700'}`}>
+                                <span className={`text-xs p-1 rounded-full ${isToday(day) ? 'bg-blue-600 text-white px-2' : isPast ? 'text-gray-400' : 'text-gray-700'}`}>
                                     {format(day, 'd')}
                                     {i === 0 && <span className="ml-1">{format(day, 'MMM')}</span>}
                                 </span>
@@ -310,12 +358,12 @@ const MonthView = ({ currentDate, events, interviews = [] }) => {
                             </div>
                             <div className="space-y-1 overflow-hidden">
                                 {dayInterviews.map(interview => (
-                                    <div key={interview.id} className="text-[10px] bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded truncate border-l-2 border-indigo-600 cursor-pointer hover:bg-indigo-200 font-medium">
+                                    <div key={interview.id} className="text-[10px] bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 px-1 py-0.5 rounded truncate border-l-2 border-indigo-600 cursor-pointer hover:from-indigo-200 hover:to-purple-200 font-medium transition-all">
                                         🎯 {format(parseISO(interview.start), 'HH:mm')} {interview.title}
                                     </div>
                                 ))}
                                 {dayEvents.map(event => (
-                                    <div key={event.id} className="text-[10px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded truncate border-l-2 border-blue-500 cursor-pointer hover:bg-blue-200">
+                                    <div key={event.id} className="text-[10px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded truncate border-l-2 border-blue-500 cursor-pointer hover:bg-blue-200 transition-colors">
                                         {format(parseISO(event.start), 'HH:mm')} {event.title}
                                     </div>
                                 ))}

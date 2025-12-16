@@ -82,6 +82,29 @@ export async function sendMeetingConfirmation({ to, type, meetingDetails }) {
 }
 
 /**
+ * Send event invitation email with enhanced template
+ */
+export async function sendEventInvitation({ to, type, eventDetails }) {
+    try {
+        const template = getEmailTemplate('eventInvitation');
+        const html = template({
+            ...eventDetails,
+            type // 'invitation' or 'reminder'
+        });
+
+        const subject =
+            type === 'reminder'
+                ? `⏰ Reminder: ${eventDetails.eventName} - Tomorrow`
+                : `🎯 Event Invitation: ${eventDetails.eventName}`;
+
+        return await sendEmail({ to, subject, html });
+    } catch (error) {
+        console.error('Event invitation error:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Send welcome email to waitlist
  */
 export async function sendWelcomeEmail({ to, name }) {
@@ -118,6 +141,7 @@ export async function verifyEmailConfig() {
 export default {
     sendEmail,
     sendMeetingConfirmation,
+    sendEventInvitation,
     sendWelcomeEmail,
     verifyEmailConfig
 };

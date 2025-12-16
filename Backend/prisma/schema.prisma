@@ -137,6 +137,8 @@ model Meeting {
   
   title             String
   description       String?   @db.Text
+  eventField        String?   // e.g., "Technology", "Finance", "Healthcare"
+  keyAreas          String[]  @default([]) // Key topics/areas to discuss
   scheduledTime     DateTime
   duration          Int       @default(30) // in minutes
   timezone          String    @default("America/New_York")
