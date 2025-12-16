@@ -13,12 +13,45 @@ import {
     Zap,
     Clock
 } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import ConnectCalendar from '../components/ConnectCalendar';
+import InterviewScheduleManager from '../components/InterviewScheduleManager';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 
 export default function Dashboard() {
     const { data: stats, isLoading } = useQuery({
         queryKey: ['dashboard-stats'],
         queryFn: () => api.getDashboardStats().then(res => res.data)
     });
+
+    const { recruiterId } = useParams();
+
+    // If viewing a specific recruiter's dashboard (Calendar & Interview View)
+    if (recruiterId) {
+        return (
+            <DashboardLayout>
+                <div className="space-y-6">
+                    <div>
+                        <h1 className="text-3xl font-bold mb-2">Recruiter Dashboard</h1>
+                        <p className="text-slate-600 dark:text-slate-400">Manage your calendar and scheduled interviews.</p>
+                    </div>
+
+                    <Tabs defaultValue="interviews" className="w-full">
+                        <TabsList className="grid w-full max-w-md grid-cols-2">
+                            <TabsTrigger value="interviews">Interviews</TabsTrigger>
+                            <TabsTrigger value="calendar">Calendar</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="interviews" className="mt-6">
+                            <InterviewScheduleManager recruiterId={recruiterId} />
+                        </TabsContent>
+                        <TabsContent value="calendar" className="mt-6">
+                            <ConnectCalendar embeddedRecruiterId={recruiterId} />
+                        </TabsContent>
+                    </Tabs>
+                </div>
+            </DashboardLayout>
+        );
+    }
 
     if (isLoading) {
         return (

@@ -24,6 +24,32 @@ function initCalendar(refreshToken) {
 }
 
 /**
+ * List calendar events
+ * @param {Object} params - { refreshToken, timeMin, timeMax }
+ */
+export async function listEvents({ refreshToken, timeMin, timeMax }) {
+    try {
+        const calendarApi = initCalendar(refreshToken);
+
+        const response = await calendarApi.events.list({
+            calendarId: 'primary',
+            timeMin: timeMin.toISOString(),
+            timeMax: timeMax.toISOString(),
+            singleEvents: true,
+            orderBy: 'startTime',
+        });
+
+        return {
+            success: true,
+            events: response.data.items
+        };
+    } catch (error) {
+        console.error('List events error:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Create calendar event with Google Meet
  * @param {Object} tokens - { refreshToken }
  */
@@ -164,5 +190,6 @@ export default {
     createCalendarEvent,
     updateCalendarEvent,
     deleteCalendarEvent,
-    getFreeBusy
+    getFreeBusy,
+    listEvents
 };

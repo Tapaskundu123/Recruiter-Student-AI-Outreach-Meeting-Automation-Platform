@@ -1,220 +1,393 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Clock, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, MapPin, Menu, Plus, Search, Settings, User } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useSearchParams, useParams } from 'react-router-dom';
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameDay, isToday, startOfDay, addMinutes } from 'date-fns';
+import {
+    format, startOfMonth, endOfMonth, eachDayOfInterval,
+    getDay, addMonths, subMonths, isSameDay, isToday,
+    startOfWeek, endOfWeek, addWeeks, subWeeks,
+    addDays, subDays, startOfDay, endOfDay,
+    isSameMonth, parseISO
+} from 'date-fns';
 
 const API_Base_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-const ConnectCalendar = () => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [loading, setLoading] = useState(true);
-  
-  // Calendar State
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState('month'); // 'month', 'week', 'day'
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [availableSlots, setAvailableSlots] = useState([]); // [{start: ISO, end: ISO}]
-  const [events, setEvents] = useState([]); // Optional: if backend returns busy events
-  const [bookingLoading, setBookingLoading] = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState(false);
+const ConnectCalendar = ({ embeddedRecruiterId }) => {
+    const [searchParams] = useSearchParams();
+    const { recruiterId: paramRecruiterId } = useParams();
+    const navigate = useNavigate();
 
-  // URL Params
-  const [searchParams] = useSearchParams();
-  const status = searchParams.get("status");
-  const { recruiterId } = useParams();
-  
-  const studentId = "student_123_id"; // Replace with real
+    // Use prop if embedded, otherwise param
+    const recruiterId = embeddedRecruiterId || paramRecruiterId;
 
-  useEffect(() => {
-    if (status === "calendar_connected") {
-      setIsConnected(true);
-      toast.success("Google Calendar connected successfully!");
-    } else if (status === "calendar_failed") {
-      toast.error("Connection failed");
+    // State
+    const [isConnected, setIsConnected] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [view, setView] = useState('month'); // 'month', 'week', 'day'
+    const [events, setEvents] = useState([]);
+    const [showSidebar, setShowSidebar] = useState(true);
+    const [interviews, setInterviews] = useState([]);
+
+    // --- ACTIONS ---
+    const createTestEvent = async () => {
+        try {
+            toast.loading("Creating test event...");
+            await axios.post(`${API_Base_URL}/calendar/schedule`, {
+                recruiterId,
+                title: "Test Event - AI Outreach",
+                time: new Date().toISOString(),
+                duration: 30
+            });
+            toast.dismiss();
+            toast.success("Test event created! Check your Google Calendar.");
+            fetchEvents(); // Refresh data
+        } catch (err) {
+            toast.dismiss();
+            toast.error("Failed to create event. Check console.");
+            console.error(err);
+        }
+    };
+
+    // Status check from URL (post-oauth)
+    useEffect(() => {
+        const status = searchParams.get("status");
+        if (status === "calendar_connected") {
+            setIsConnected(true);
+            toast.success("Calendar connected!");
+            // Clean URL
+            // navigate(`/dashboard/${recruiterId}`, { replace: true });
+        } else if (status === "calendar_failed") {
+            toast.error("Connection failed");
+        }
+    }, [searchParams, navigate, recruiterId]);
+
+    // Initial Check (Simulated for now, real app would check /api/recruiter/:id status)
+    useEffect(() => {
+        if (recruiterId) {
+            checkConnectionStatus();
+        }
+    }, [recruiterId]);
+
+    const checkConnectionStatus = async () => {
+        try {
+            const res = await axios.get(`${API_Base_URL}/public/recruiters/${recruiterId}`);
+            // In a real app, I'd check a specific field 'isCalendarConnected'
+            // For now, let's assume if we can fetch events, it's connected.
+            // Or checking if public profile exists is enough to try fetching events.
+            fetchEvents();
+            setIsConnected(true); // Optimistic or based on API
+        } catch (err) {
+            console.error("Not connected or not found");
+            setIsConnected(false);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchEvents = async () => {
+        if (!recruiterId) return;
+        try {
+            // Fetch for current view range
+            let start, end;
+            if (view === 'month') {
+                start = startOfMonth(currentDate);
+                end = endOfMonth(currentDate);
+            } else if (view === 'week') {
+                start = startOfWeek(currentDate);
+                end = endOfWeek(currentDate);
+            } else {
+                start = startOfDay(currentDate);
+                end = endOfDay(currentDate);
+            }
+
+            const res = await axios.get(`${API_Base_URL}/calendar/slots`, {
+                params: {
+                    recruiterId,
+                    date: currentDate.toISOString(),
+                    start: start.toISOString(),
+                    end: end.toISOString()
+                }
+            });
+            setEvents(res.data.events || []);
+            setInterviews(res.data.interviews || []);
+        } catch (err) {
+            console.error("Failed to fetch events");
+            setIsConnected(false); // Likely auth failed
+        }
+    };
+
+    // Re-fetch when date/view changes
+    useEffect(() => {
+        if (isConnected) fetchEvents();
+    }, [currentDate, view, isConnected]);
+
+
+    const handleConnect = () => {
+        window.location.href = `${API_Base_URL}/auth/google?recruiterId=${recruiterId}`;
+    };
+
+    const next = () => {
+        if (view === 'month') setCurrentDate(addMonths(currentDate, 1));
+        if (view === 'week') setCurrentDate(addWeeks(currentDate, 1));
+        if (view === 'day') setCurrentDate(addDays(currentDate, 1));
+    };
+
+    const prev = () => {
+        if (view === 'month') setCurrentDate(subMonths(currentDate, 1));
+        if (view === 'week') setCurrentDate(subWeeks(currentDate, 1));
+        if (view === 'day') setCurrentDate(subDays(currentDate, 1));
+    };
+
+    const today = () => setCurrentDate(new Date());
+
+    if (!recruiterId) return <div className="p-8 text-center text-red-500">Recruiter ID Missing</div>;
+    if (loading) return <div className="p-8 text-center">Loading...</div>;
+
+    if (!isConnected) {
+        return (
+            <div className="flex flex-col items-center justify-center p-12 bg-gray-50 rounded-lg border border-gray-200 shadow-sm h-[600px]">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+                    <CalendarIcon className="w-8 h-8 text-blue-600" />
+                </div>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">Connect Google Calendar</h2>
+                <p className="text-gray-500 mb-8 text-center max-w-md">
+                    Sync your meetings, check availability, and schedule calls directly from this dashboard.
+                </p>
+                <Button onClick={handleConnect} size="lg" className="bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 shadow-sm gap-3">
+                    <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+                    Sign in with Google
+                </Button>
+            </div>
+        );
     }
-    setLoading(false);
-  }, [status]);
 
-  // Fetch availability/events for selected date (when in day view)
-  useEffect(() => {
-    if (isConnected && recruiterId && view === 'day') {
-      fetchAvailability();
-    }
-  }, [isConnected, recruiterId, selectedDate, view]);
+    // --- GOOGLE CALENDAR UI CLONE ---
 
-  const fetchAvailability = async () => {
-    try {
-      const res = await axios.get(`${API_Base_URL}/calendar/slots`, {
-        params: { recruiterId, date: format(selectedDate, 'yyyy-MM-dd') }
-      });
-      setAvailableSlots(res.data.slots || res.data); // Adjust based on your API response
-      // setEvents(res.data.events || []); // If you return busy events
-    } catch (err) {
-      toast.error("Failed to load calendar");
-    }
-  };
-
-  const handleConnect = () => {
-    if (!recruiterId) return toast.error("Recruiter ID missing");
-    window.location.href = `${API_Base_URL}/auth/google?recruiterId=${recruiterId}`;
-  };
-
-  const handleBookSlot = async (slotStart) => {
-    setBookingLoading(true);
-    try {
-      await axios.post(`${API_Base_URL}/calendar/schedule`, {
-        recruiterId,
-        studentId,
-        time: slotStart,
-        duration: 30
-      });
-      setBookingSuccess(true);
-      toast.success("Meeting booked!");
-      fetchAvailability(); // Refresh
-    } catch (err) {
-      toast.error("Booking failed");
-    } finally {
-      setBookingLoading(false);
-    }
-  };
-
-  const goToToday = () => {
-    setCurrentDate(new Date());
-    setSelectedDate(new Date());
-  };
-
-  // Monthly View Days
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
-
-  const firstDayOffset = getDay(monthStart); // 0=Sun
-
-  if (loading) return <Card className="p-8 text-center">Loading...</Card>;
-
-  if (!isConnected) {
     return (
-      <Card className="max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" /> Google Calendar
-          </CardTitle>
-          <CardDescription>Connect to view and schedule from your real calendar.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={handleConnect} className="w-full gap-2 bg-white text-gray-800 border hover:bg-gray-50">
-            <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
-            Connect Google Calendar
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-lg">
-      {/* Google-like Header */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center gap-4">
-          <h1 className="text-3xl font-normal text-gray-800">Calendar</h1>
-          <Button variant="outline" onClick={goToToday}>Today</Button>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(subMonths(currentDate, 1))}><ChevronLeft /></Button>
-            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(addMonths(currentDate, 1))}><ChevronRight /></Button>
-          </div>
-          <span className="text-xl font-medium">{format(currentDate, 'MMMM yyyy')}</span>
-        </div>
-        <div className="flex gap-2">
-          <Button variant={view === 'day' ? 'default' : 'outline'} onClick={() => setView('day')}>Day</Button>
-          <Button variant={view === 'week' ? 'default' : 'outline'} onClick={() => setView('week')}>Week</Button>
-          <Button variant={view === 'month' ? 'default' : 'outline'} onClick={() => setView('month')}>Month</Button>
-        </div>
-      </div>
-
-      {/* Month View */}
-      {view === 'month' && (
-        <div className="p-4">
-          <div className="grid grid-cols-7 text-center text-sm font-medium text-gray-600 mb-2">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => <div key={day}>{day}</div>)}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: firstDayOffset }).map((_, i) => <div key={`empty-${i}`} />)}
-            {monthDays.map(day => (
-              <div
-                key={day.toString()}
-                onClick={() => { setSelectedDate(day); setView('day'); }}
-                className={`aspect-square flex flex-col items-center justify-center rounded-lg cursor-pointer transition
-                  ${isToday(day) ? 'bg-blue-100 text-blue-900 font-bold' : ''}
-                  ${isSameDay(day, selectedDate) ? 'ring-2 ring-blue-600' : 'hover:bg-gray-100'}
-                `}
-              >
-                <span className="text-sm">{format(day, 'd')}</span>
-                {/* Mini dots for events if you have them */}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Day View */}
-      {view === 'day' && (
-        <div className="flex h-screen">
-          <div className="w-16 border-r">
-            {/* Time labels */}
-            {Array.from({ length: 24 }).map((_, hour) => (
-              <div key={hour} className="h-16 text-xs text-right pr-2 pt-1 text-gray-500">
-                {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
-              </div>
-            ))}
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {Array.from({ length: 24 }).map((_, hour) => (
-              <div key={hour} className="h-16 border-b relative">
-                {/* Hourly slots - generate 30-min intervals */}
-                {[0, 30].map(min => {
-                  const slotStart = startOfDay(selectedDate);
-                  slotStart.setHours(hour, min);
-                  const slotISO = slotStart.toISOString();
-
-                  const isAvailable = availableSlots.some(slot => slot.start === slotISO);
-
-                  return (
-                    <div key={min} className="absolute inset-x-0 h-16">
-                      {isAvailable && (
-                        <Button
-                          disabled={bookingLoading}
-                          onClick={() => handleBookSlot(slotISO)}
-                          className="absolute inset-x-4 top-2 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow"
-                        >
-                          {format(slotStart, 'h:mm a')} - {format(addMinutes(slotStart, 30), 'h:mm a')}
-                        </Button>
-                      )}
+        <div className="flex flex-col h-[calc(100vh-100px)] bg-white rounded-lg shadow-sm border overflow-hidden">
+            {/* Header */}
+            <header className="flex items-center justify-between px-4 py-2 border-b">
+                <div className="flex items-center gap-4">
+                    <Button variant="ghost" size="icon" onClick={() => setShowSidebar(!showSidebar)} className="text-gray-600">
+                        <Menu className="w-5 h-5" />
+                    </Button>
+                    <div className="flex items-center gap-2">
+                        <img src="https://www.gstatic.com/images/branding/product/1x/calendar_2020q4_48dp.png" alt="Logo" className="w-8 h-8" />
+                        <span className="text-xl font-normal text-gray-700 hidden md:block">Calendar</span>
                     </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+                    <Button variant="outline" className="ml-8 mr-2 px-4 h-9" onClick={today}>Today</Button>
+                    <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={prev} className="h-8 w-8 rounded-full"><ChevronLeft className="w-5 h-5" /></Button>
+                        <Button variant="ghost" size="icon" onClick={next} className="h-8 w-8 rounded-full"><ChevronRight className="w-5 h-5" /></Button>
+                    </div>
+                    <h2 className="text-xl font-normal text-gray-700 ml-2">
+                        {format(currentDate, 'MMMM yyyy')}
+                    </h2>
+                </div>
 
-      {/* Success Overlay */}
-      {bookingSuccess && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="bg-white p-8 text-center">
-            <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold">Meeting Scheduled!</h2>
-            <p className="text-gray-600 mt-2">Check your Google Calendar and email for the Meet link.</p>
-            <Button className="mt-6" onClick={() => setBookingSuccess(false)}>Close</Button>
-          </Card>
+                <div className="flex items-center gap-2">
+                    <div className="flex bg-gray-100 rounded-md p-0.5">
+                        {['Day', 'Week', 'Month'].map((v) => (
+                            <button
+                                key={v}
+                                onClick={() => setView(v.toLowerCase())}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-sm transition-all ${view === v.toLowerCase() ? 'bg-white shadow-sm text-gray-800' : 'text-gray-600 hover:bg-gray-200'}`}
+                            >
+                                {v}
+                            </button>
+                        ))}
+                    </div>
+                    <Avatar className="h-8 w-8 ml-4">
+                        <AvatarFallback className="bg-purple-600 text-white">R</AvatarFallback>
+                    </Avatar>
+                </div>
+            </header>
+
+            <div className="flex flex-1 overflow-hidden">
+                {/* Sidebar */}
+                {showSidebar && (
+                    <aside className="w-64 border-r flex flex-col p-4 hidden md:flex bg-white">
+                        <Button className="w-32 rounded-full h-12 shadow-lg mb-6 bg-white hover:bg-gray-50 text-gray-700 border flex items-center gap-2 pl-3 justify-start">
+                            <span className="text-3xl font-light text-red-500">+</span>
+                            <span className="font-medium">Create</span>
+                        </Button>
+
+                        {/* Mini Calendar (Static for visual) */}
+                        <div className="mb-6">
+                            <div className="flex justify-between items-center mb-2 px-2">
+                                <span className="text-sm font-medium text-gray-700">{format(currentDate, 'MMMM yyyy')}</span>
+                                <div className="flex gap-1">
+                                    <ChevronLeft className="w-4 h-4 text-gray-400" />
+                                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-7 text-center text-xs text-gray-500 mb-1">
+                                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => <div key={d}>{d}</div>)}
+                            </div>
+                            <div className="grid grid-cols-7 text-center text-xs gap-y-2">
+                                {eachDayOfInterval({ start: startOfWeek(startOfMonth(currentDate)), end: endOfWeek(endOfMonth(currentDate)) }).slice(0, 35).map((day, i) => (
+                                    <div key={i} className={`h-6 w-6 mx-auto flex items-center justify-center rounded-full ${isSameDay(day, currentDate) ? 'bg-blue-600 text-white' : isSameMonth(day, currentDate) ? 'text-gray-700' : 'text-gray-300'}`}>
+                                        {format(day, 'd')}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="mt-4">
+                            <h3 className="text-sm font-medium text-gray-600 mb-2 flex justify-between items-center">
+                                My calendars <ChevronLeft className="w-4 h-4 rotate-90" />
+                            </h3>
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-sm text-gray-700">
+                                    <div className="w-4 h-4 rounded bg-blue-500 flex items-center justify-center text-white text-[10px]">✔</div>
+                                    <span>{recruiterId ? "Recruiter" : "User"}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-gray-700">
+                                    <div className="w-4 h-4 rounded border-2 border-gray-400"></div>
+                                    <span>Birthdays</span>
+                                </div>
+
+                                {/* Test Integration Button */}
+                                <Button variant="outline" size="sm" className="w-full mt-4 text-xs" onClick={createTestEvent}>
+                                    <Settings className="w-3 h-3 mr-2" />
+                                    Test Connection
+                                </Button>
+                            </div>
+                        </div>
+                    </aside>
+                )}
+
+                {/* Main Calendar View */}
+                <main className="flex-1 overflow-y-auto bg-white">
+                    {view === 'month' && <MonthView currentDate={currentDate} events={events} interviews={interviews} />}
+                    {view === 'week' && <WeekView currentDate={currentDate} events={events} />}
+                    {view === 'day' && <DayView currentDate={currentDate} events={events} />}
+                </main>
+            </div>
         </div>
-      )}
-    </div>
-  );
+    );
 };
+
+
+// --- SUB COMPONENTS ---
+
+const MonthView = ({ currentDate, events, interviews = [] }) => {
+    const start = startOfWeek(startOfMonth(currentDate));
+    const end = endOfWeek(endOfMonth(currentDate));
+    const days = eachDayOfInterval({ start, end });
+
+    return (
+        <div className="h-full flex flex-col">
+            <div className="grid grid-cols-7 border-b">
+                {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(day => (
+                    <div key={day} className="py-2 text-center text-xs font-medium text-gray-500 border-l first:border-l-0">
+                        {day}
+                    </div>
+                ))}
+            </div>
+            <div className="flex-1 grid grid-cols-7 grid-rows-5 (or-auto)">
+                {days.map((day, i) => {
+                    const dayEvents = events.filter(e => isSameDay(parseISO(e.start), day));
+                    const dayInterviews = interviews.filter(e => isSameDay(parseISO(e.start), day));
+                    const hasInterviews = dayInterviews.length > 0;
+                    return (
+                        <div key={day.toISOString()} className={`border-b border-r min-h-[100px] p-1 flex flex-col hover:bg-gray-50 ${isSameMonth(day, currentDate) ? 'bg-white' : 'bg-gray-50/50'} ${hasInterviews ? 'ring-2 ring-indigo-200 ring-inset' : ''}`}>
+                            <div className="text-center mb-1 relative">
+                                <span className={`text-xs p-1 rounded-full ${isToday(day) ? 'bg-blue-600 text-white px-2' : 'text-gray-700'}`}>
+                                    {format(day, 'd')}
+                                    {i === 0 && <span className="ml-1">{format(day, 'MMM')}</span>}
+                                </span>
+                                {hasInterviews && (
+                                    <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                                        {dayInterviews.length}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="space-y-1 overflow-hidden">
+                                {dayInterviews.map(interview => (
+                                    <div key={interview.id} className="text-[10px] bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded truncate border-l-2 border-indigo-600 cursor-pointer hover:bg-indigo-200 font-medium">
+                                        🎯 {format(parseISO(interview.start), 'HH:mm')} {interview.title}
+                                    </div>
+                                ))}
+                                {dayEvents.map(event => (
+                                    <div key={event.id} className="text-[10px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded truncate border-l-2 border-blue-500 cursor-pointer hover:bg-blue-200">
+                                        {format(parseISO(event.start), 'HH:mm')} {event.title}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+// Simplified Week/Day Views for brevity but retaining structure
+const WeekView = ({ currentDate, events }) => {
+    const start = startOfWeek(currentDate);
+    const days = eachDayOfInterval({ start, end: endOfWeek(currentDate) });
+
+    return (
+        <div className="flex flex-col h-full overflow-y-auto">
+            <div className="grid grid-cols-8 border-b sticky top-0 bg-white z-10 w-full min-w-[800px]">
+                <div className="w-16 border-r p-2 text-xs text-gray-400 text-right mt-8">GMT+0</div>
+                {days.map(day => (
+                    <div key={day.toISOString()} className="border-r flex flex-col items-center py-2">
+                        <span className="text-xs text-gray-500 uppercase">{format(day, 'EEE')}</span>
+                        <span className={`text-xl font-normal mt-1 w-8 h-8 flex items-center justify-center rounded-full ${isToday(day) ? 'bg-blue-600 text-white' : 'text-gray-700'}`}>
+                            {format(day, 'd')}
+                        </span>
+                    </div>
+                ))}
+            </div>
+            <div className="flex flex-1 min-w-[800px] relative">
+                <div className="w-16 border-r flex flex-col">
+                    {Array.from({ length: 24 }).map((_, i) => (
+                        <div key={i} className="h-14 border-b text-[10px] text-gray-500 text-right pr-2 -mt-2 relative">
+                            {i > 0 && <span className="absolute -top-2 right-2">{i > 12 ? i - 12 + ' PM' : i + ' AM'}</span>}
+                        </div>
+                    ))}
+                </div>
+                <div className="flex-1 grid grid-cols-7">
+                    {days.map(day => (
+                        <div key={day.toISOString()} className="border-r relative h-[1344px]"> {/* 24 * 56px */}
+                            {Array.from({ length: 24 }).map((_, i) => <div key={i} className="h-14 border-b border-gray-100" />)}
+
+                            {/* Render Events */}
+                            {events.filter(e => isSameDay(parseISO(e.start), day)).map(event => {
+                                const start = parseISO(event.start);
+                                const end = parseISO(event.end);
+                                const top = (start.getHours() * 60 + start.getMinutes()) * (56 / 60); // 56px per hour
+                                const duration = (end - start) / 60000;
+                                const height = duration * (56 / 60);
+                                return (
+                                    <div
+                                        key={event.id}
+                                        style={{ top: `${top}px`, height: `${Math.max(20, height)}px` }}
+                                        className="absolute inset-x-1 bg-blue-100 text-blue-700 text-[10px] p-1 rounded border-l-2 border-blue-500 overflow-hidden leading-tight hover:z-20 hover:scale-105 transition-all shadow-sm"
+                                    >
+                                        <div className="font-semibold">{event.title}</div>
+                                        <div>{format(start, 'h:mm a')}</div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const DayView = ({ currentDate, events }) => {
+    return <WeekView currentDate={currentDate} events={events} />; // Reuse logic but just 1 column ideally. Lazy impl for now.
+};
+
 
 export default ConnectCalendar;

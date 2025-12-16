@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { Calendar, Clock, MapPin, Briefcase, User, CheckCircle, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, MapPin, Briefcase, User, CheckCircle, AlertCircle, Loader2, Sparkles } from 'lucide-react';
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { motion } from 'framer-motion';
 
 const API_Base_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -85,43 +86,130 @@ const PublicBookingPage = () => {
         }
     };
 
-    if (loading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 py-12 px-4 sm:px-6 lg:px-8">
+                <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="md:col-span-1">
+                        <Card className="h-full shadow-lg animate-pulse">
+                            <CardHeader className="text-center">
+                                <div className="h-24 w-24 mx-auto mb-4 rounded-full bg-gray-200" />
+                                <div className="h-6 bg-gray-200 rounded w-3/4 mx-auto mb-2" />
+                                <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto" />
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="h-4 bg-gray-200 rounded" />
+                                <div className="h-4 bg-gray-200 rounded w-5/6" />
+                            </CardContent>
+                        </Card>
+                    </div>
+                    <div className="md:col-span-2 space-y-6">
+                        <div className="flex gap-6">
+                            <Card className="flex-1 shadow-md animate-pulse">
+                                <CardContent className="p-6">
+                                    <div className="h-6 bg-gray-200 rounded w-1/3 mb-4" />
+                                    <div className="h-10 bg-gray-200 rounded" />
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
     if (error) return <div className="flex h-screen items-center justify-center text-red-500">{error}</div>;
 
     if (bookingSuccess) {
         return (
-            <div className="flex bg-gray-50 min-h-screen items-center justify-center p-4">
-                <Card className="w-full max-w-md text-center">
-                    <CardHeader>
-                        <div className="mx-auto mb-4 bg-green-100 p-3 rounded-full w-fit">
-                            <CheckCircle className="h-12 w-12 text-green-600" />
-                        </div>
-                        <CardTitle className="text-2xl">Meeting Scheduled!</CardTitle>
-                        <CardDescription>
-                            Your meeting with {recruiter.name} has been confirmed.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-gray-600 mb-4">
-                            A calendar invitation with the Google Meet link has been sent to your email.
-                        </p>
-                        <div className="bg-gray-100 p-4 rounded-lg text-left">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Clock className="h-4 w-4 text-gray-500" />
-                                <span className="font-medium">
-                                    {new Date(selectedSlot).toLocaleString(undefined, {
-                                        dateStyle: 'full',
-                                        timeStyle: 'short'
-                                    })}
-                                </span>
+            <div className="flex bg-gradient-to-br from-green-50 to-emerald-50 min-h-screen items-center justify-center p-4 relative overflow-hidden">
+                {/* Confetti Effect Background */}
+                <div className="absolute inset-0 pointer-events-none">
+                    {[...Array(20)].map((_, i) => (
+                        <motion.div
+                            key={i}
+                            initial={{ y: -100, x: Math.random() * window.innerWidth, opacity: 1 }}
+                            animate={{
+                                y: window.innerHeight + 100,
+                                rotate: Math.random() * 360,
+                                opacity: 0
+                            }}
+                            transition={{
+                                duration: 3 + Math.random() * 2,
+                                delay: Math.random() * 2,
+                                repeat: Infinity,
+                                repeatDelay: Math.random() * 3
+                            }}
+                            className="absolute w-3 h-3 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-full"
+                            style={{ left: Math.random() * 100 + '%' }}
+                        />
+                    ))}
+                </div>
+
+                <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.5, type: 'spring' }}
+                    className="relative z-10"
+                >
+                    <Card className="w-full max-w-md text-center shadow-2xl border-t-4 border-t-green-500">
+                        <CardHeader>
+                            <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                                className="mx-auto mb-4 bg-gradient-to-br from-green-400 to-emerald-500 p-4 rounded-full w-fit relative"
+                            >
+                                <CheckCircle className="h-16 w-16 text-white" />
+                                <motion.div
+                                    animate={{ scale: [1, 1.2, 1] }}
+                                    transition={{ repeat: Infinity, duration: 2 }}
+                                    className="absolute -top-1 -right-1"
+                                >
+                                    <Sparkles className="h-6 w-6 text-yellow-400" />
+                                </motion.div>
+                            </motion.div>
+                            <CardTitle className="text-3xl mb-2 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Interview Scheduled!</CardTitle>
+                            <CardDescription className="text-lg">
+                                Your meeting with <strong className="text-gray-900">{recruiter.name}</strong> is confirmed
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <p className="text-gray-600">
+                                📧 A calendar invitation with the Google Meet link has been sent to your email.
+                            </p>
+                            <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-xl border-2 border-green-100 text-left space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-green-100 rounded-lg">
+                                        <Clock className="h-5 w-5 text-green-600" />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500 uppercase font-semibold">Date & Time</p>
+                                        <p className="font-medium text-gray-900">
+                                            {new Date(selectedSlot).toLocaleString(undefined, {
+                                                dateStyle: 'full',
+                                                timeStyle: 'short'
+                                            })}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-indigo-100 rounded-lg">
+                                        <MapPin className="h-5 w-5 text-indigo-600" />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500 uppercase font-semibold">Location</p>
+                                        <p className="font-medium text-gray-900">Google Meet (link in email)</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-gray-500" />
-                                <span>Google Meet</span>
+                            <div className="bg-blue-50 p-4 rounded-lg text-sm text-left border border-blue-100">
+                                <p className="text-blue-900">
+                                    💡 <strong>Tip:</strong> Check your email for the Google Meet link and add it to your calendar!
+                                </p>
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                </motion.div>
             </div>
         );
     }
@@ -236,11 +324,21 @@ const PublicBookingPage = () => {
                             </div>
                             <Button
                                 size="lg"
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200"
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                 disabled={!selectedSlot || bookingLoading}
                                 onClick={handleBookMeeting}
                             >
-                                {bookingLoading ? "Scheduling..." : "Confirm Booking"}
+                                {bookingLoading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Scheduling...
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle className="w-4 h-4 mr-2" />
+                                        Confirm Booking
+                                    </>
+                                )}
                             </Button>
                         </CardContent>
                     </Card>
