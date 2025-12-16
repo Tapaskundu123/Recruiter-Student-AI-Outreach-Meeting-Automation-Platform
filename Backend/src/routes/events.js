@@ -6,6 +6,112 @@ import { scheduleMeeting } from '../calendar/scheduler.js';
 const router = express.Router();
 
 /**
+ * POST /api/events/schedule
+ * Automatic meeting scheduling with participant email
+ */
+router.post('/schedule',
+    [
+        body('recruiterId').isUUID().withMessage('Valid recruiter ID required'),
+        body('participantEmail').isEmail().withMessage('Valid participant email required'),
+        body('agenda').optional().trim(),
+        body('scheduledTime').isISO8601().withMessage('Valid date/time required'),
+        body('duration').isInt({ min: 15, max: 240 }).withMessage('Duration must be between 15 and 240 minutes')
+    ],
+    async (req, res) => {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
+            }
+
+            const {
+                recruiterId,
+                participantEmail,
+                agenda,
+                scheduledTime,
+                duration
+            } = req.body;
+
+            // Fetch recruiter details
+            const recruiter = await prisma.recruiter.findUnique({
+                where: { id: recruiterId }
+            });
+
+            if (!recruiter) {
+                return res.status(404).json({ error: 'Recruiter not found' });
+            }
+
+            if (!recruiter.googleRefreshToken) {
+                return res.status(400).json({
+                    error: 'Google Calendar not connected',
+                    code: 'CALENDAR_NOT_CONNECTED'
+                });
+            }
+
+            // Try to find student by email, create if doesn't exist
+            let student = await prisma.student.findUnique({
+                where: { email: participantEmail }
+            });
+
+            if (!student) {
+                // Extract name from email (before @)
+                const emailName = participantEmail.split('@')[0];
+                const displayName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
+
+                student = await prisma.student.create({
+                    data: {
+                        email: participantEmail,
+                        name: displayName,
+                        status: 'contacted'
+                    }
+                });
+            }
+
+            const title = 'Meeting Discussion';
+            const description = agenda || 'Meeting scheduled via AI Outreach Platform';
+
+            // Schedule the meeting
+            const meeting = await scheduleMeeting({
+                recruiterId,
+                studentId: student.id,
+                recruiterEmail: recruiter.email,
+                studentEmail: student.email,
+                recruiterName: recruiter.name,
+                studentName: student.name,
+                scheduledTime,
+                duration,
+                title,
+                description,
+                eventField: null,
+                keyAreas: []
+            });
+
+            res.json({
+                success: true,
+                meeting: {
+                    id: meeting.id,
+                    title: meeting.title,
+                    scheduledTime: meeting.scheduledTime,
+                    duration: meeting.duration,
+                    googleMeetLink: meeting.googleMeetLink,
+                    participant: {
+                        name: student.name,
+                        email: student.email
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error('Meeting scheduling error:', error);
+            res.status(500).json({
+                error: 'Failed to schedule meeting',
+                message: error.message
+            });
+        }
+    }
+);
+
+/**
  * POST /api/events/create
  * Create a new event with Google Calendar integration
  */

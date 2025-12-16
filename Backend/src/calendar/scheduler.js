@@ -104,13 +104,31 @@ export async function scheduleMeeting({
             data: { confirmationSent: true }
         });
 
-        // Schedule reminder job
+        // Schedule reminder jobs (both 24h and 1h)
         await addMeetingReminderJob({
             meetingId: meeting.id,
             scheduledTime: startTime,
             recruiterEmail,
             studentEmail,
-            meetingDetails
+            meetingDetails: {
+                eventName: title,
+                scheduledTime: startTime.toLocaleString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZoneName: 'short'
+                }),
+                duration,
+                googleMeetLink: calendarResult.googleMeetLink,
+                description,
+                eventField,
+                keyAreas: keyAreas || [],
+                recruiterName,
+                studentName
+            }
         });
 
         return meeting;

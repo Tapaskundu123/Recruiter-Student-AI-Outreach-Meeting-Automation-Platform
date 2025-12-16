@@ -30,6 +30,7 @@ const ConnectCalendar = ({ embeddedRecruiterId }) => {
     const [loading, setLoading] = useState(true);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [view, setView] = useState('month'); // 'month', 'week', 'day'
+    const [slots, setSlots] = useState([]);
     const [events, setEvents] = useState([]);
     const [showSidebar, setShowSidebar] = useState(true);
     const [interviews, setInterviews] = useState([]);
@@ -61,15 +62,15 @@ const ConnectCalendar = ({ embeddedRecruiterId }) => {
         const status = searchParams.get("status");
         if (status === "calendar_connected") {
             setIsConnected(true);
+            setLoading(false); // Fix: Force stop loading
             toast.success("Calendar connected!");
-            // Clean URL
-            // navigate(`/dashboard/${recruiterId}`, { replace: true });
         } else if (status === "calendar_failed") {
             toast.error("Connection failed");
+            setLoading(false); // Fix: Force stop loading
         }
     }, [searchParams, navigate, recruiterId]);
 
-    // Initial Check (Simulated for now, real app would check /api/recruiter/:id status)
+    // Initial Check
     useEffect(() => {
         if (recruiterId) {
             checkConnectionStatus();
@@ -77,13 +78,13 @@ const ConnectCalendar = ({ embeddedRecruiterId }) => {
     }, [recruiterId]);
 
     const checkConnectionStatus = async () => {
+        // If we have a status param, we handled it above
+        if (searchParams.get("status")) return;
+
         try {
             const res = await axios.get(`${API_Base_URL}/public/recruiters/${recruiterId}`);
-            // In a real app, I'd check a specific field 'isCalendarConnected'
-            // For now, let's assume if we can fetch events, it's connected.
-            // Or checking if public profile exists is enough to try fetching events.
             fetchEvents();
-            setIsConnected(true); // Optimistic or based on API
+            setIsConnected(true);
         } catch (err) {
             console.error("Not connected or not found");
             setIsConnected(false);
@@ -91,7 +92,6 @@ const ConnectCalendar = ({ embeddedRecruiterId }) => {
             setLoading(false);
         }
     };
-
     const fetchEvents = async () => {
         if (!recruiterId) return;
         try {
@@ -108,7 +108,8 @@ const ConnectCalendar = ({ embeddedRecruiterId }) => {
                 end = endOfDay(currentDate);
             }
 
-            const res = await axios.get(`${API_Base_URL}/calendar/slots`, {
+            // Fetch Google Calendar Events
+            const calendarRes = await axios.get(`${API_Base_URL}/calendar/slots`, {
                 params: {
                     recruiterId,
                     date: currentDate.toISOString(),
@@ -116,11 +117,17 @@ const ConnectCalendar = ({ embeddedRecruiterId }) => {
                     end: end.toISOString()
                 }
             });
-            setEvents(res.data.events || []);
-            setInterviews(res.data.interviews || []);
+
+            // Fetch Availability Slots
+            const slotsRes = await axios.get(`${API_Base_URL}/availability/recruiter/${recruiterId}`);
+
+            setEvents(calendarRes.data.events || []);
+            setInterviews(calendarRes.data.interviews || []);
+            setSlots(slotsRes.data.availabilities || []);
+
         } catch (err) {
-            console.error("Failed to fetch events");
-            setIsConnected(false); // Likely auth failed
+            console.error("Failed to fetch events:", err);
+            // Don't setisConnected(false) here immediately as one API might fail while other works
         }
     };
 
@@ -220,10 +227,10 @@ const ConnectCalendar = ({ embeddedRecruiterId }) => {
                                 setSelectedDateForEvent(new Date());
                                 setShowEventModal(true);
                             }}
-                            className="w-40 rounded-full h-12 shadow-lg hover:shadow-xl mb-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0 flex items-center gap-2 pl-4 justify-start transform hover:scale-105 transition-all duration-300"
+                            className="w-44 rounded-full h-12 shadow-lg hover:shadow-xl mb-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0 flex items-center gap-2 pl-4 justify-start transform hover:scale-105 transition-all duration-300"
                         >
                             <Sparkles className="w-5 h-5" />
-                            <span className="font-semibold">Create Event</span>
+                            <span className="font-semibold">Mark Availability</span>
                         </Button>
 
                         {/* Mini Calendar (Static for visual) */}
@@ -273,12 +280,12 @@ const ConnectCalendar = ({ embeddedRecruiterId }) => {
 
                 {/* Main Calendar View */}
                 <main className="flex-1 overflow-y-auto bg-white">
-                    {view === 'month' && <MonthView currentDate={currentDate} events={events} interviews={interviews} onDateClick={(date) => {
+                    {view === 'month' && <MonthView currentDate={currentDate} events={events} interviews={interviews} slots={slots} onDateClick={(date) => {
                         setSelectedDateForEvent(date);
                         setShowEventModal(true);
                     }} />}
-                    {view === 'week' && <WeekView currentDate={currentDate} events={events} />}
-                    {view === 'day' && <DayView currentDate={currentDate} events={events} />}
+                    {view === 'week' && <WeekView currentDate={currentDate} events={events} slots={slots} />}
+                    {view === 'day' && <DayView currentDate={currentDate} events={events} slots={slots} />}
                 </main>
             </div>
 
@@ -299,7 +306,7 @@ const ConnectCalendar = ({ embeddedRecruiterId }) => {
 
 // --- SUB COMPONENTS ---
 
-const MonthView = ({ currentDate, events, interviews = [], onDateClick }) => {
+const MonthView = ({ currentDate, events, interviews = [], slots = [], onDateClick }) => {
     const start = startOfWeek(startOfMonth(currentDate));
     const end = endOfWeek(endOfMonth(currentDate));
     const days = eachDayOfInterval({ start, end });
@@ -318,7 +325,11 @@ const MonthView = ({ currentDate, events, interviews = [], onDateClick }) => {
                 {days.map((day, i) => {
                     const dayEvents = events.filter(e => isSameDay(parseISO(e.start), day));
                     const dayInterviews = interviews.filter(e => isSameDay(parseISO(e.start), day));
+                    const daySlots = slots.filter(s => isSameDay(parseISO(s.startTime), day));
+
                     const hasInterviews = dayInterviews.length > 0;
+                    const hasSlots = daySlots.length > 0;
+
                     const isHovered = hoveredDay === i;
                     const isPast = day < startOfDay(new Date());
                     const isCurrentMonth = isSameMonth(day, currentDate);
@@ -350,16 +361,32 @@ const MonthView = ({ currentDate, events, interviews = [], onDateClick }) => {
                                     {format(day, 'd')}
                                     {i === 0 && <span className="ml-1">{format(day, 'MMM')}</span>}
                                 </span>
-                                {hasInterviews && (
-                                    <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                                        {dayInterviews.length}
-                                    </span>
+                                {(hasInterviews || hasSlots) && (
+                                    <div className="absolute -top-1 -right-1 flex gap-0.5">
+                                        {hasInterviews && (
+                                            <span className="bg-indigo-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                                                {dayInterviews.length}
+                                            </span>
+                                        )}
+                                        {hasSlots && (
+                                            <span className="bg-purple-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                                                {daySlots.length}
+                                            </span>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                             <div className="space-y-1 overflow-hidden">
                                 {dayInterviews.map(interview => (
                                     <div key={interview.id} className="text-[10px] bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 px-1 py-0.5 rounded truncate border-l-2 border-indigo-600 cursor-pointer hover:from-indigo-200 hover:to-purple-200 font-medium transition-all">
                                         🎯 {format(parseISO(interview.start), 'HH:mm')} {interview.title}
+                                    </div>
+                                ))}
+                                {/* Render Availability Slots */}
+                                {daySlots.map(slot => (
+                                    <div key={slot.id} className="text-[10px] bg-purple-50 text-purple-700 px-1 py-0.5 rounded truncate border border-dashed border-purple-400 cursor-pointer hover:bg-purple-100 transition-colors flex items-center gap-1">
+                                        <Clock className="w-3 h-3" />
+                                        {format(parseISO(slot.startTime), 'HH:mm')} ({slot.duration}m)
                                     </div>
                                 ))}
                                 {dayEvents.map(event => (

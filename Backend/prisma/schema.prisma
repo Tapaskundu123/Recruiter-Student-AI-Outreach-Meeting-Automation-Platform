@@ -31,6 +31,7 @@ model Recruiter {
   // Relations
   campaigns     CampaignRecipient[]
   meetings      Meeting[] @relation("RecruiterMeetings")
+  availabilitySlots AvailabilitySlot[] @relation("RecruiterAvailability")
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -129,6 +130,35 @@ model CampaignRecipient {
   @@index([studentId])
 }
 
+// Recruiter Availability Slots (marked by recruiter, confirmed by admin)
+model AvailabilitySlot {
+  id            String    @id @default(uuid())
+  recruiterId   String
+  
+  startTime     DateTime
+  endTime       DateTime
+  duration      Int       // in minutes
+  timezone      String    @default("America/New_York")
+  
+  // Status tracking
+  status        String    @default("pending") // pending, confirmed, cancelled
+  confirmedBy   String?   // Admin ID who confirmed
+  
+  // Related meeting (once admin assigns student)
+  meetingId     String?   @unique
+  meeting       Meeting?  @relation("AvailabilityMeeting", fields: [meetingId], references: [id])
+  
+  // Relations
+  recruiter     Recruiter @relation("RecruiterAvailability", fields: [recruiterId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([recruiterId])
+  @@index([startTime])
+  @@index([status])
+}
+
 // Meeting Model
 model Meeting {
   id                String    @id @default(uuid())
@@ -155,6 +185,7 @@ model Meeting {
   // Relations
   recruiter         Recruiter @relation("RecruiterMeetings", fields: [recruiterId], references: [id], onDelete: Cascade)
   student           Student   @relation("StudentMeetings", fields: [studentId], references: [id], onDelete: Cascade)
+  availabilitySlot  AvailabilitySlot? @relation("AvailabilityMeeting")
   
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt

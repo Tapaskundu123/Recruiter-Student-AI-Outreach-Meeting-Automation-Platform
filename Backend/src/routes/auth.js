@@ -43,7 +43,8 @@ router.get('/google', (req, res) => {
         include_granted_scopes: true // Allows incremental auth if adding scopes later
     });
 
-    res.json({ url: authUrl });
+    // res.json({ url: authUrl });
+    res.redirect(authUrl);
 });
 
 /**

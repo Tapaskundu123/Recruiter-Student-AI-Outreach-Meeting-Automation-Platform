@@ -65,7 +65,19 @@ const InterviewScheduleManager = ({ recruiterId }) => {
         }
     });
 
+    // Fetch availability slots
+    const { data: availabilityData } = useQuery({
+        queryKey: ['availability', recruiterId],
+        queryFn: async () => {
+            const res = await axios.get(`${API_Base_URL}/availability/recruiter/${recruiterId}`);
+            return res.data;
+        },
+        enabled: !!recruiterId,
+        refetchInterval: 30000
+    });
+
     const meetings = meetingsData?.meetings || [];
+    const availabilitySlots = availabilityData?.availabilities || [];
     const stats = statsData?.stats || {};
 
     const getStatusConfig = (status) => {
@@ -74,7 +86,8 @@ const InterviewScheduleManager = ({ recruiterId }) => {
             confirmed: { color: 'bg-green-100 text-green-700 border-green-200', label: 'Confirmed', icon: CheckCircle },
             completed: { color: 'bg-gray-100 text-gray-700 border-gray-200', label: 'Completed', icon: CheckCircle },
             cancelled: { color: 'bg-red-100 text-red-700 border-red-200', label: 'Cancelled', icon: XCircle },
-            'no-show': { color: 'bg-orange-100 text-orange-700 border-orange-200', label: 'No Show', icon: AlertCircle }
+            'no-show': { color: 'bg-orange-100 text-orange-700 border-orange-200', label: 'No Show', icon: AlertCircle },
+            pending: { color: 'bg-purple-100 text-purple-700 border-purple-200', label: 'Availability Marked', icon: Clock }
         };
         return configs[status] || configs.scheduled;
     };
@@ -159,7 +172,7 @@ const InterviewScheduleManager = ({ recruiterId }) => {
 
             {/* Filters */}
             <div className="flex gap-2">
-                {['upcoming', 'all', 'completed', 'cancelled'].map((f) => (
+                {['upcoming', 'all', 'availability', 'completed', 'cancelled'].map((f) => (
                     <Button
                         key={f}
                         variant={filter === f ? 'default' : 'outline'}
@@ -167,18 +180,32 @@ const InterviewScheduleManager = ({ recruiterId }) => {
                         onClick={() => setFilter(f)}
                         className={filter === f ? 'bg-indigo-600 hover:bg-indigo-700' : ''}
                     >
-                        {f.charAt(0).toUpperCase() + f.slice(1)}
+                        {f === 'availability' ? 'Availability Slots' : f.charAt(0).toUpperCase() + f.slice(1)}
                     </Button>
                 ))}
             </div>
 
-            {/* Meetings List */}
+            {/* Content List */}
             <div className="space-y-4">
-                {meetings.length === 0 ? (
+                {/* Render Availability Slots if filter matches */}
+                {(filter === 'all' || filter === 'availability') && availabilitySlots.map((slot, index) => (
+                    <AvailabilityCard
+                        key={slot.id}
+                        slot={slot}
+                        index={index}
+                        onCancel={async () => {
+                            // Implement cancel logic if needed
+                            toast.info('Cancel functionality coming soon');
+                        }}
+                    />
+                ))}
+
+                {/* Render Meetings */}
+                {(filter !== 'availability') && meetings.length === 0 && (filter === 'upcoming' || filter === 'completed' || filter === 'cancelled') ? (
                     <EmptyState filter={filter} />
                 ) : (
                     <AnimatePresence mode="popLayout">
-                        {meetings.map((meeting, index) => (
+                        {(filter !== 'availability') && meetings.map((meeting, index) => (
                             <MeetingCard
                                 key={meeting.id}
                                 meeting={meeting}
@@ -190,6 +217,16 @@ const InterviewScheduleManager = ({ recruiterId }) => {
                             />
                         ))}
                     </AnimatePresence>
+                )}
+
+                {filter === 'availability' && availabilitySlots.length === 0 && (
+                    <div className="flex flex-col items-center justify-center p-12 text-center">
+                        <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mb-4">
+                            <Clock className="w-10 h-10 text-purple-400" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Availability Marked</h3>
+                        <p className="text-gray-500 mb-6 max-w-md">Mark your availability on the calendar to allow students to be assigned.</p>
+                    </div>
                 )}
             </div>
         </div>
@@ -372,6 +409,80 @@ const EmptyState = ({ filter }) => {
             <h3 className="text-xl font-semibold text-gray-900 mb-2">{config.title}</h3>
             <p className="text-gray-500 mb-6 max-w-md">{config.description}</p>
         </div>
+    );
+};
+
+// Availability Card Component
+const AvailabilityCard = ({ slot, index, onCancel }) => {
+    const slotDate = new Date(slot.startTime);
+    const isUpcoming = isFuture(slotDate);
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ delay: index * 0.05 }}
+        >
+            <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-purple-500 bg-purple-50/10">
+                <CardContent className="p-6">
+                    <div className="flex items-start justify-between gap-4">
+                        {/* Left Section */}
+                        <div className="flex-1">
+                            <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                                    <Clock className="w-6 h-6 text-purple-600" />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h3 className="text-lg font-semibold text-gray-900">Available Slot</h3>
+                                        <Badge variant="outline" className="border-purple-200 text-purple-700 bg-purple-50">Pending Confirmation</Badge>
+                                    </div>
+
+                                    <div className="space-y-2 mt-2">
+                                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                                            <Calendar className="w-4 h-4" />
+                                            <span>{format(slotDate, 'PPP')}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                                            <Clock className="w-4 h-4" />
+                                            <span>{format(slotDate, 'p')}</span>
+                                            <span>•</span>
+                                            <span>{slot.duration} min</span>
+                                            {isUpcoming && (
+                                                <>
+                                                    <span>•</span>
+                                                    <span className="text-purple-600 font-medium">
+                                                        {formatDistance(slotDate, new Date(), { addSuffix: true })}
+                                                    </span>
+                                                </>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                                            <AlertCircle className="w-4 h-4" />
+                                            <span>Waiting for admin to assign a student</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right Section */}
+                        <div className="flex flex-col items-end gap-3">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={onCancel}
+                            >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Remove Slot
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </motion.div>
     );
 };
 
