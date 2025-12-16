@@ -335,7 +335,7 @@ router.get('/waitlisted-students', async (req, res) => {
     try {
         const waitlistedStudents = await prisma.student.findMany({
             where: {
-                status: 'waitlisted'
+                status: 'waitlist'
             },
             orderBy: {
                 createdAt: 'desc'
@@ -426,6 +426,7 @@ router.post('/confirm-meeting',
             // Schedule the meeting
             const meeting = await scheduleMeeting({
                 recruiterId: recruiter.id,
+                refreshToken: recruiter.googleRefreshToken, // Pass refresh token
                 studentId: student.id,
                 recruiterEmail: recruiter.email,
                 studentEmail: student.email,

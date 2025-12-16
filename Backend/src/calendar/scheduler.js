@@ -8,6 +8,7 @@ import { addMeetingReminderJob } from '../jobs/meetingJobs.js';
  */
 export async function scheduleMeeting({
     recruiterId,
+    refreshToken, // Receive refresh token
     studentId,
     recruiterEmail,
     studentEmail,
@@ -26,6 +27,7 @@ export async function scheduleMeeting({
 
         // Create Google Calendar event
         const calendarResult = await createCalendarEvent({
+            refreshToken, // Pass refresh token
             summary: title,
             description: description || `Meeting between ${recruiterName} and ${studentName}`,
             startDateTime: startTime,

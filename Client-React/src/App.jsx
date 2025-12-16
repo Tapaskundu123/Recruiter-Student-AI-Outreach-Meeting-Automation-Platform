@@ -8,6 +8,7 @@ import LeadManager from './pages/LeadManager';
 import Analytics from './pages/Analytics';
 import PublicBookingPage from './pages/PublicBookingPage';
 import ConnectCalendar from './components/ConnectCalendar';
+import AdminAvailabilityDashboard from './pages/AdminAvailabilityDashboard';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
       <Route path="/admin/meetings" element={<MeetingScheduler />} />
       <Route path="/admin/leads" element={<LeadManager />} />
       <Route path="/admin/analytics" element={<Analytics />} />
+      <Route path="/admin/availability" element={<AdminAvailabilityDashboard />} />
       <Route path="/book/:recruiterId" element={<PublicBookingPage />} />
       <Route path="/dashboard/:recruiterId" element={<ConnectCalendar />} />
     </Routes>

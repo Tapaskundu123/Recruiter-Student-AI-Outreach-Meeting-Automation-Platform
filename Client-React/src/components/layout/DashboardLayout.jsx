@@ -8,13 +8,15 @@ import {
     Users,
     TrendingUp,
     Menu,
-    X
+    X,
+    Clock
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '../../lib/utils';
 
 const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
+    { icon: Clock, label: 'Availability', path: '/admin/availability' },
     { icon: Database, label: 'Scraping', path: '/admin/scraping' },
     { icon: Mail, label: 'Campaigns', path: '/admin/campaigns' },
     { icon: Calendar, label: 'Meetings', path: '/admin/meetings' },
