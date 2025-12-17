@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import CsvUploadZone from '@/components/csv/CsvUploadZone';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -125,6 +126,7 @@ const CsvUploadManager = () => {
     };
 
     return (
+       <DashboardLayout>
         <div className="p-8 max-w-7xl mx-auto space-y-8">
             {/* Header */}
             <div>
@@ -307,7 +309,9 @@ const CsvUploadManager = () => {
                 </div>
             )}
         </div>
+    </DashboardLayout> 
     );
 };
+
 
 export default CsvUploadManager;

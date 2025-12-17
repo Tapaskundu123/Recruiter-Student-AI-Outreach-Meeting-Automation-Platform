@@ -206,9 +206,9 @@ export default function Dashboard() {
                         <div className="grid md:grid-cols-4 gap-4">
                             <QuickAction
                                 icon={Zap}
-                                title="Start Scraping"
-                                description="Find new leads"
-                                href="/admin/scraping"
+                                title="Import Data"
+                                description="Upload CSV files"
+                                href="/admin/csv-upload"
                             />
                             <QuickAction
                                 icon={Mail}

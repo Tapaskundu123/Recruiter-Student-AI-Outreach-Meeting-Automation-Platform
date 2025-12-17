@@ -16,6 +16,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -91,6 +92,7 @@ const AdminAvailabilityDashboard = () => {
   }
 
   return (
+   <DashboardLayout>
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -209,11 +211,10 @@ const AdminAvailabilityDashboard = () => {
                 <div
                   key={student.id}
                   onClick={() => setSelectedStudent(student)}
-                  className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                    selectedStudent?.id === student.id
+                  className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedStudent?.id === student.id
                       ? 'border-indigo-500 bg-indigo-50 shadow-md'
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -250,6 +251,7 @@ const AdminAvailabilityDashboard = () => {
         </div>
       </div>
     </div>
+  </DashboardLayout> 
   );
 };
 
