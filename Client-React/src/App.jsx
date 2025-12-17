@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
-import ScrapingMonitor from './pages/ScrapingMonitor';
+import CsvUploadManager from './pages/CsvUploadManager';
 import CampaignManager from './pages/CampaignManager';
 import MeetingScheduler from './pages/MeetingScheduler';
 import LeadManager from './pages/LeadManager';
@@ -15,7 +15,7 @@ function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/admin" element={<Dashboard />} />
-      <Route path="/admin/scraping" element={<ScrapingMonitor />} />
+      <Route path="/admin/csv-upload" element={<CsvUploadManager />} />
       <Route path="/admin/campaigns" element={<CampaignManager />} />
       <Route path="/admin/meetings" element={<MeetingScheduler />} />
       <Route path="/admin/leads" element={<LeadManager />} />

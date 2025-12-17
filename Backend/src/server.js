@@ -8,7 +8,7 @@ import prisma from './db/client.js';
 
 // Import routes
 import waitlistRoutes from './routes/waitlist.js';
-import scrapersRoutes from './routes/scrapers.js';
+import csvRoutes from './routes/csv.js';
 import campaignsRoutes from './routes/campaigns.js';
 import meetingsRoutes from './routes/meetings.js';
 import analyticsRoutes from './routes/analytics.js';
@@ -62,7 +62,7 @@ app.get('/health', async (req, res) => {
 
 // API Routes
 app.use(`${config.API_PREFIX}/waitlist`, waitlistRoutes);
-app.use(`${config.API_PREFIX}/scrapers`, scrapersRoutes);
+app.use(`${config.API_PREFIX}/csv`, csvRoutes);
 app.use(`${config.API_PREFIX}/campaigns`, campaignsRoutes);
 app.use(`${config.API_PREFIX}/meetings`, meetingsRoutes);
 app.use(`${config.API_PREFIX}/analytics`, analyticsRoutes);

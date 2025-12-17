@@ -1,0 +1,5 @@
+name,email,company,position,linkedin_url,location,industry,phone,experience_years
+John Doe,john.doe@techcorp.com,Tech Corp,Senior Recruiter,linkedin.com/in/johndoe,USA,Technology,+1-555-0101,8
+Jane Smith,jane.smith@startup.io,Startup Inc,HR Manager,linkedin.com/in/janesmith,Canada,Finance,+1-555-0102,5
+Michael Johnson,michael.j@enterprise.com,Enterprise Solutions,Technical Recruiter,,UK,Technology,+44-20-5550103,6
+Sarah Williams,sarah.w@consulting.com,Global Consulting,Talent Acquisition Lead,linkedin.com/in/sarahwilliams,Australia,Consulting,+61-2-5550104,10

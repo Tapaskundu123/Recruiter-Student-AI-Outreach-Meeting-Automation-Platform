@@ -17,9 +17,8 @@ model Recruiter {
   linkedIn      String?
   country       String?
   field         String?   // e.g., "Technology", "Finance", "Healthcare"
-  platform      String?   // e.g., "GitHub", "Indeed", "Glassdoor", "Company Website"
+  platform      String?   // e.g., "CSV Upload", "Manual Entry"
   status        String    @default("active") // active, inactive, bounced
-  scrapedAt     DateTime  @default(now())
   enrichedData  Json?     // Additional AI-enriched data
 
   // Google Calendar Integration
@@ -57,6 +56,7 @@ model Student {
   resume            String?   // URL or path to resume
   status            String    @default("waitlist") // waitlist, contacted, scheduled, completed
   waitlistJoinedAt  DateTime  @default(now())
+  enrichedData      Json?     // Additional data including CSV import data
   
   // Relations
   campaigns         CampaignRecipient[]
@@ -196,24 +196,60 @@ model Meeting {
   @@index([status])
 }
 
-// Scraping Log Model
-model ScrapingLog {
+// CSV Upload Model
+model CsvUpload {
   id            String    @id @default(uuid())
-  jobType       String    // "recruiter", "student"
-  target        String    // URL or platform being scraped
-  status        String    @default("running") // running, completed, failed, cancelled
-  recordsFound  Int       @default(0)
-  recordsSaved  Int       @default(0)
-  errors        Json?     // Error logs
   
-  startedAt     DateTime  @default(now())
-  completedAt   DateTime?
+  // File information
+  filename      String    // Generated unique filename
+  originalName  String    // Original filename from user
+  fileSize      Int       // Size in bytes
+  filePath      String    // Path to stored file
+  
+  // Upload metadata
+  recordType    String    // "recruiter" or "student"
+  uploadedBy    String?   // Admin ID (if auth implemented)
+  
+  // Processing status
+  status        String    @default("pending") // pending, processing, completed, failed
+  totalRecords  Int       @default(0)
+  successCount  Int       @default(0)
+  errorCount    Int       @default(0)
+  
+  // Timestamps
+  uploadedAt    DateTime  @default(now())
+  processedAt   DateTime?
+  
+  // Additional metadata
+  metadata      Json?     // Column mappings, validation rules, etc.
+  
+  // Relations
+  errors        CsvUploadError[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([recordType])
+  @@index([status])
+  @@index([uploadedAt])
+}
+
+// CSV Upload Error Model
+model CsvUploadError {
+  id            String    @id @default(uuid())
+  csvUploadId   String
+  
+  rowNumber     Int
+  errorMessage  String    @db.Text
+  rowData       Json?     // The problematic row data
+  fieldName     String?   // Specific field that caused error
+  
+  // Relations
+  csvUpload     CsvUpload @relation(fields: [csvUploadId], references: [id], onDelete: Cascade)
   
   createdAt     DateTime  @default(now())
   
-  @@index([jobType])
-  @@index([status])
-  @@index([startedAt])
+  @@index([csvUploadId])
 }
 
 // Admin User Model (for dashboard access)

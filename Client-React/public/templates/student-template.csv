@@ -1,0 +1,5 @@
+name,email,phone,university,major,graduationYear,country,degree
+Alice Johnson,alice.johnson@university.edu,+1-234-567-8900,MIT,Computer Science,2025,USA,B.Tech
+Bob Lee,bob.lee@college.edu,,Stanford University,Data Science,2024,USA,M.S.
+Carol Martinez,carol.m@uni.ac.uk,+44-123-456-7890,Oxford,Electrical Engineering,2026,UK,B.Eng
+David Chen,david.chen@school.edu,+1-555-123-4567,UC Berkeley,Business Administration,2025,USA,MBA

@@ -9,7 +9,9 @@ import {
     TrendingUp,
     Menu,
     X,
-    Clock
+    Clock,
+    File,
+    
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '../../lib/utils';
@@ -17,11 +19,11 @@ import { cn } from '../../lib/utils';
 const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
     { icon: Clock, label: 'Availability', path: '/admin/availability' },
-    { icon: Database, label: 'Scraping', path: '/admin/scraping' },
     { icon: Mail, label: 'Campaigns', path: '/admin/campaigns' },
     { icon: Calendar, label: 'Meetings', path: '/admin/meetings' },
     { icon: Users, label: 'Leads', path: '/admin/leads' },
-    { icon: TrendingUp, label: 'Analytics', path: '/admin/analytics' }
+    { icon: TrendingUp, label: 'Analytics', path: '/admin/analytics' },
+    { icon: File, label: 'CSV Uploads', path: '/admin/csv-upload' }
 ];
 
 export default function DashboardLayout({ children }) {
