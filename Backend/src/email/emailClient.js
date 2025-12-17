@@ -18,8 +18,21 @@ function initTransporter() {
             auth: {
                 user: config.SMTP.USER,
                 pass: config.SMTP.PASS
-            }
+            },
+            // Brevo-specific settings
+            pool: true, // Use pooled connections for better performance
+            maxConnections: 5,
+            maxMessages: 100
         });
+
+        // Log Brevo connection info
+        if (config.SMTP.HOST && config.SMTP.HOST.includes('brevo')) {
+            console.log('📧 Initializing Brevo SMTP transporter...');
+            console.log(`   Host: ${config.SMTP.HOST}`);
+            console.log(`   Port: ${config.SMTP.PORT}`);
+            console.log(`   User: ${config.SMTP.USER}`);
+            console.log(`   From: ${config.SMTP.FROM}`);
+        }
     }
     // Add Postmark/SendGrid configurations as needed
 
@@ -43,14 +56,25 @@ export async function sendEmail({ to, subject, html, text }) {
 
         const info = await transport.sendMail(mailOptions);
 
-        console.log(`Email sent to ${to}: ${info.messageId}`);
+        // Enhanced logging for Brevo
+        if (config.SMTP.HOST && config.SMTP.HOST.includes('brevo')) {
+            console.log(`✅ Email sent via Brevo SMTP`);
+            console.log(`   To: ${to}`);
+            console.log(`   Subject: ${subject}`);
+            console.log(`   Message ID: ${info.messageId}`);
+        } else {
+            console.log(`Email sent to ${to}: ${info.messageId}`);
+        }
 
         return {
             success: true,
-            messageId: info.messageId
+            messageId: info.messageId,
+            recipient: to
         };
     } catch (error) {
-        console.error('Email send error:', error.message);
+        console.error('❌ Email send error:', error.message);
+        console.error(`   Recipient: ${to}`);
+        console.error(`   SMTP Host: ${config.SMTP.HOST}`);
         return {
             success: false,
             error: error.message
@@ -130,10 +154,21 @@ export async function verifyEmailConfig() {
     try {
         const transport = initTransporter();
         await transport.verify();
-        console.log('Email configuration verified ✓');
+
+        if (config.SMTP.HOST && config.SMTP.HOST.includes('brevo')) {
+            console.log('✅ Brevo SMTP configuration verified successfully!');
+            console.log('   Ready to send meeting confirmation emails');
+        } else {
+            console.log('✓ Email configuration verified');
+        }
+
         return true;
     } catch (error) {
-        console.error('Email verification failed:', error.message);
+        console.error('❌ Email verification failed:', error.message);
+        if (config.SMTP.HOST && config.SMTP.HOST.includes('brevo')) {
+            console.error('   Please check your Brevo SMTP credentials in .env');
+            console.error('   Get credentials from: https://app.brevo.com/settings/keys/smtp');
+        }
         return false;
     }
 }

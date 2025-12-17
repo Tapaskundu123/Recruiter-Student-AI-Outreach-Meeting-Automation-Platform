@@ -95,7 +95,7 @@ const AdminAvailabilityDashboard = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Meeting Arrangements</h1>
           <p className="text-gray-500 mt-1">Assign students to recruiter availability slots</p>
         </div>
         <div className="flex gap-4">
