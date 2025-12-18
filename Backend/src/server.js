@@ -19,6 +19,7 @@ import calendarRoutes from './routes/calendar.js';
 import dashboardRoutes from './routes/dashboard.js';
 import eventsRoutes from './routes/events.js';
 import availabilityRoutes from './routes/availability.js';
+import emailRoutes from './routes/email.js';
 
 const app = express();
 
@@ -73,6 +74,7 @@ app.use(`${config.API_PREFIX}/calendar`, calendarRoutes);
 app.use(`${config.API_PREFIX}/dashboard`, dashboardRoutes);
 app.use(`${config.API_PREFIX}/events`, eventsRoutes);
 app.use(`${config.API_PREFIX}/availability`, availabilityRoutes);
+app.use(`${config.API_PREFIX}/email`, emailRoutes);
 
 // 404 Handler
 app.use((req, res) => {

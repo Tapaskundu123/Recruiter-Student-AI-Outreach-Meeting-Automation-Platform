@@ -91,6 +91,20 @@ export const api = {
 
     // --- ANALYTICS LEGACY (Optional, for backward compatibility) ---
     // getDashboardStats was mapped to /admin/stats above.
+
+    // --- EMAIL ---
+    getEmailTemplates: (params) => apiClient.get('/email/templates', { params }),
+    createEmailTemplate: (data) => apiClient.post('/email/templates', data),
+    updateEmailTemplate: (id, data) => apiClient.patch(`/email/templates/${id}`, data),
+    deleteEmailTemplate: (id) => apiClient.delete(`/email/templates/${id}`),
+    generateEmailContent: (data) => apiClient.post('/email/generate', data),
+    sendBulkEmail: (data) => apiClient.post('/email/send', data),
+    uploadEmailTemplate: (formData) => apiClient.post('/email/upload', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    }),
+    refineEmailTemplate: (id) => apiClient.post(`/email/refine/${id}`),
 };
 
 export default apiClient;

@@ -267,3 +267,20 @@ model Admin {
   
   @@index([email])
 }
+
+// Email Template Model (for reusable email templates)
+model EmailTemplate {
+  id          String   @id @default(uuid())
+  name        String   // "Recruiter Outreach", "Student Welcome", etc.
+  category    String   // "recruiter", "student", "both"
+  subject     String
+  content     String   @db.Text // Handlebars template with placeholders
+  description String?
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([category])
+  @@index([isActive])
+}

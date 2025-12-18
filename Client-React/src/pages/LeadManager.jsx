@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { api } from '../lib/api';
-import { Users, UserCheck, Search, Download, Trash2, Filter, ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { Users, UserCheck, Search, Download, Trash2, Filter, ChevronLeft, ChevronRight, MoreHorizontal, Mail } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Button } from '../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Checkbox } from '../components/ui/checkbox';
 import { toast } from 'sonner';
+import EmailComposer from '../components/EmailComposer';
 
 export default function LeadManager() {
     const queryClient = useQueryClient();
@@ -26,6 +27,9 @@ export default function LeadManager() {
     // Selection
     const [selectedRecruiters, setSelectedRecruiters] = useState([]);
     const [selectedStudents, setSelectedStudents] = useState([]);
+
+    // Email Composer
+    const [showEmailComposer, setShowEmailComposer] = useState(false);
 
     // --- RECRUITERS QUERY ---
     const { data: recruitersData, isLoading: isLoadingRecruiters } = useQuery({
@@ -173,6 +177,14 @@ export default function LeadManager() {
                                 <span className="text-sm font-medium px-2">
                                     {activeTab === 'recruiters' ? selectedRecruiters.length : selectedStudents.length} selected
                                 </span>
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700" 
+                                    onClick={() => setShowEmailComposer(true)}
+                                >
+                                    <Mail className="w-4 h-4 mr-1" /> Send Email
+                                </Button>
                                 <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleBulkDelete}>
                                     <Trash2 className="w-4 h-4 mr-1" /> Delete
                                 </Button>
@@ -371,6 +383,35 @@ export default function LeadManager() {
                     </TabsContent>
                 </Tabs>
             </div>
+
+            {/* Email Composer Modal */}
+            {showEmailComposer && (
+                <EmailComposer
+                    recipients={[
+                        // Add recruiters
+                        ...recruitersData?.data
+                            ?.filter(r => selectedRecruiters.includes(r.id))
+                            .map(r => ({
+                                id: r.id,
+                                type: 'recruiter',
+                                name: r.name,
+                                email: r.email,
+                                company: r.company
+                            })) || [],
+                        // Add students
+                        ...studentsData?.data
+                            ?.filter(s => selectedStudents.includes(s.id))
+                            .map(s => ({
+                                id: s.id,
+                                type: 'student',
+                                name: s.name,
+                                email: s.email,
+                                university: s.university
+                            })) || []
+                    ]}
+                    onClose={() => setShowEmailComposer(false)}
+                />
+            )}
         </DashboardLayout>
     );
 }
