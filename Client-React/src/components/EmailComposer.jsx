@@ -116,27 +116,42 @@ export default function EmailComposer({
     });
 
     // Handle file selection
-    const handleFileSelect = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            // Validate file type
-            if (!file.name.endsWith('.html') && !file.name.endsWith('.htm')) {
-                toast.error('Invalid file type', {
-                    description: 'Please select an HTML file'
-                });
-                e.target.value = '';
-                return;
-            }
-            setSelectedFile(file);
-            // Auto-fill name from filename if empty
-            if (!uploadData.name) {
-                setUploadData(prev => ({
-                    ...prev,
-                    name: file.name.replace(/\.[^/.]+$/, '')
-                }));
-            }
-        }
-    };
+   const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+    const isValidExtension =
+        fileName.endsWith('.html') || fileName.endsWith('.htm');
+
+    // Extra safety: MIME type check
+    const isValidMime =
+        file.type === 'text/html' || file.type === '';
+
+    if (!isValidExtension || !isValidMime) {
+        toast.error('Invalid file type', {
+            description: 'Please upload a valid HTML (.html) file'
+        });
+
+        // Reset file input
+        e.target.value = '';
+        setSelectedFile(null);
+        return;
+    }
+
+    setSelectedFile(file);
+
+    // Auto-fill template name from filename (only if empty)
+    setUploadData(prev => {
+        if (prev.name) return prev;
+
+        return {
+            ...prev,
+            name: file.name.replace(/\.[^/.]+$/, '')
+        };
+    });
+};
+
 
     // Handle template upload
     const handleUpload = () => {
