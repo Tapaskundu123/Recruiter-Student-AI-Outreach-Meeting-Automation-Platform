@@ -187,39 +187,74 @@ Return ONLY the JSON object, no other text.
 
 /**
  * Refine an uploaded HTML template to make it look professional and human-written
+ * Includes anti-spam measures and email best practices
  */
 export async function refineEmailTemplate(htmlContent) {
   try {
     const prompt = `
-You are an expert email designer and copywriter.
+You are an expert email designer and copywriter specializing in professional, deliverable emails.
 
-Analyze and refine the following HTML email template to make it look professional and human-written.
+Analyze and refine the following HTML email template to make it look professional, human-written, and spam-filter friendly.
 
 HTML TEMPLATE:
 ${htmlContent}
 
 REFINEMENT REQUIREMENTS:
-1. Keep the core structure and content
-2. Improve the visual design:
-   - Add modern styling with inline CSS
-   - Use professional fonts (e.g., Arial, Helvetica, sans-serif)
-   - Ensure responsive design
-   - Add proper spacing and padding
-   - Use a professional color scheme
-3. Enhance the copywriting:
+
+1. **Professional Visual Design**:
+   - Add modern styling with inline CSS (required for email clients)
+   - Use professional, web-safe fonts (Arial, Helvetica, Georgia, sans-serif)
+   - Ensure responsive design with max-width: 600px
+   - Add proper spacing and padding (16-24px)
+   - Use a professional color scheme (avoid bright reds, excessive colors)
+   - Add subtle borders and backgrounds where appropriate
+
+2. **Email Client Compatibility**:
+   - Use table-based layouts for maximum compatibility
+   - All CSS must be inline
+   - Avoid external resources or scripts
+   - Include proper DOCTYPE and meta tags
+   - Add alt text for any images
+   - Use background colors sparingly
+
+3. **Anti-Spam Best Practices**:
+   - AVOID spam trigger words like: FREE, URGENT, ACT NOW, LIMITED TIME, CLICK HERE, $$$, !!!, BUY NOW, GUARANTEED
+   - Use a balanced text-to-image ratio (mostly text)
+   - Avoid excessive capitalization
+   - Include proper sender context
+   - Use natural, conversational language
+   - Avoid excessive links (max 2-3)
+   - Include a clear, visible unsubscribe option
+   - Maintain proper HTML structure with semantic tags
+
+4. **Professional Copywriting**:
    - Make the text sound natural and human
    - Improve grammar and flow
    - Add warmth to the tone while keeping it professional
-   - Ensure proper paragraph breaks
-4. Add Handlebars placeholders where appropriate:
-   - {{name}} for recipient name
-   - {{company}} for company name
-   - {{university}} for university name
-   - etc.
-5. Ensure the HTML is valid and email-client compatible
-6. Do NOT add JavaScript or external CSS
+   - Ensure proper paragraph breaks and readability
+   - Use clear, concise sentences
+   - Add a compelling but professional subject line in an HTML comment
 
-Return ONLY the refined HTML template, nothing else.
+5. **Personalization Placeholders**:
+   - Add Handlebars placeholders where appropriate:
+     * {{name}} for recipient name
+     * {{company}} for company name
+     * {{university}} for university name
+     * {{email}} for recipient email
+     * etc.
+
+6. **Email Deliverability**:
+   - Add a plain text version in HTML comments for reference
+   - Include proper header structure (h1, h2, p tags)
+   - Use semantic HTML5 tags
+   - Ensure proper encoding (UTF-8)
+
+7. **CTA Best Practices**:
+   - Make call-to-action buttons obvious but not aggressive
+   - Use button-style links (not just text links)
+   - Clear, action oriented but professional CTA text
+
+Return ONLY the refined HTML template with all improvements applied. Do not include any explanations or markdown code blocks.
 `;
 
     const result = await model.generateContent({
@@ -231,17 +266,20 @@ Return ONLY the refined HTML template, nothing else.
       ],
       generationConfig: {
         temperature: 0.6,
-        maxOutputTokens: 2000,
+        maxOutputTokens: 3000,
       },
     });
 
-    const refinedHtml = result.response.text().trim();
+    let refinedHtml = result.response.text().trim();
 
     // Remove markdown code block if present
     const htmlMatch = refinedHtml.match(/```html\n?([\s\S]*?)```/);
     if (htmlMatch) {
-      return htmlMatch[1].trim();
+      refinedHtml = htmlMatch[1].trim();
     }
+
+    // Additional cleanup - remove any remaining markdown
+    refinedHtml = refinedHtml.replace(/```[\s\S]*?```/g, '');
 
     return refinedHtml;
 

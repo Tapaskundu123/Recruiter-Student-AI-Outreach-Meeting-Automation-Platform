@@ -105,6 +105,7 @@ export const api = {
         }
     }),
     refineEmailTemplate: (id) => apiClient.post(`/email/refine/${id}`),
+    improveEmailTemplate: (htmlContent) => apiClient.post('/email/improve-template', { htmlContent }),
 };
 
 export default apiClient;

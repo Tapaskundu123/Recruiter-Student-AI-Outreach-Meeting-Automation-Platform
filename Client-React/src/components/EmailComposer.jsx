@@ -89,6 +89,22 @@ export default function EmailComposer({
         }
     });
 
+    // Improve Template Mutation
+    const improveMutation = useMutation({
+        mutationFn: api.improveEmailTemplate,
+        onSuccess: (response) => {
+            setContent(response.data.data.improved);
+            toast.success('Template improved with AI!', {
+                description: 'Professional, spam-free HTML ready to send'
+            });
+        },
+        onError: (error) => {
+            toast.error('Failed to improve template', {
+                description: error.message
+            });
+        }
+    });
+
     // Upload Template Mutation
     const uploadMutation = useMutation({
         mutationFn: api.uploadEmailTemplate,
@@ -116,41 +132,41 @@ export default function EmailComposer({
     });
 
     // Handle file selection
-   const handleFileSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const handleFileSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-    const fileName = file.name.toLowerCase();
-    const isValidExtension =
-        fileName.endsWith('.html') || fileName.endsWith('.htm');
+        const fileName = file.name.toLowerCase();
+        const isValidExtension =
+            fileName.endsWith('.html') || fileName.endsWith('.htm');
 
-    // Extra safety: MIME type check
-    const isValidMime =
-        file.type === 'text/html' || file.type === '';
+        // Extra safety: MIME type check
+        const isValidMime =
+            file.type === 'text/html' || file.type === '';
 
-    if (!isValidExtension || !isValidMime) {
-        toast.error('Invalid file type', {
-            description: 'Please upload a valid HTML (.html) file'
+        if (!isValidExtension || !isValidMime) {
+            toast.error('Invalid file type', {
+                description: 'Please upload a valid HTML (.html) file'
+            });
+
+            // Reset file input
+            e.target.value = '';
+            setSelectedFile(null);
+            return;
+        }
+
+        setSelectedFile(file);
+
+        // Auto-fill template name from filename (only if empty)
+        setUploadData(prev => {
+            if (prev.name) return prev;
+
+            return {
+                ...prev,
+                name: file.name.replace(/\.[^/.]+$/, '')
+            };
         });
-
-        // Reset file input
-        e.target.value = '';
-        setSelectedFile(null);
-        return;
-    }
-
-    setSelectedFile(file);
-
-    // Auto-fill template name from filename (only if empty)
-    setUploadData(prev => {
-        if (prev.name) return prev;
-
-        return {
-            ...prev,
-            name: file.name.replace(/\.[^/.]+$/, '')
-        };
-    });
-};
+    };
 
 
     // Handle template upload
@@ -237,230 +253,255 @@ export default function EmailComposer({
     const studentCount = recipients.filter(r => r.type === 'student').length;
 
     return (
-        <AnimatePresence>
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={onClose}
+        >
             <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                onClick={onClose}
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-5xl max-h-[90vh] overflow-hidden"
             >
-                <motion.div
-                    initial={{ scale: 0.9, y: 20 }}
-                    animate={{ scale: 1, y: 0 }}
-                    exit={{ scale: 0.9, y: 20 }}
-                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-full max-w-5xl max-h-[90vh] overflow-hidden"
-                >
-                    <Card className="border-none shadow-2xl bg-gradient-to-br from-white via-white to-purple-50/30 backdrop-blur-xl">
-                        <CardHeader className="border-b bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-purple-500/10">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <motion.div
-                                        animate={{ rotate: [0, 10, -10, 0] }}
-                                        transition={{ duration: 0.5, delay: 0.2 }}
-                                        className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-lg"
-                                    >
-                                        <Mail className="w-6 h-6 text-white" />
-                                    </motion.div>
-                                    <div>
-                                        <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                                            Compose Email
-                                        </CardTitle>
-                                        <p className="text-sm text-slate-600 mt-1">
-                                            Send to {recipients.length} recipient{recipients.length !== 1 ? 's' : ''}
-                                        </p>
-                                    </div>
-                                </div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={onClose}
-                                    className="hover:bg-red-50 hover:text-red-600 rounded-full"
+                <Card className="border-none shadow-2xl bg-gradient-to-br from-white via-white to-purple-50/30 backdrop-blur-xl">
+                    <CardHeader className="border-b bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-purple-500/10">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <motion.div
+                                    animate={{ rotate: [0, 10, -10, 0] }}
+                                    transition={{ duration: 0.5, delay: 0.2 }}
+                                    className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-lg"
                                 >
-                                    <X className="w-5 h-5" />
+                                    <Mail className="w-6 h-6 text-white" />
+                                </motion.div>
+                                <div>
+                                    <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                                        Compose Email
+                                    </CardTitle>
+                                    <p className="text-sm text-slate-600 mt-1">
+                                        Send to {recipients.length} recipient{recipients.length !== 1 ? 's' : ''}
+                                    </p>
+                                </div>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={onClose}
+                                className="hover:bg-red-50 hover:text-red-600 rounded-full"
+                            >
+                                <X className="w-5 h-5" />
+                            </Button>
+                        </div>
+                    </CardHeader>
+
+                    <CardContent className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                        {/* Recipients Display */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                            className="mb-6"
+                        >
+                            <div className="flex items-center gap-2 mb-3">
+                                <Users className="w-4 h-4 text-slate-600" />
+                                <h3 className="font-semibold text-slate-700">Recipients</h3>
+                            </div>
+                            <div className="flex flex-wrap gap-2 p-4 bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-lg border border-slate-200">
+                                {recruiterCount > 0 && (
+                                    <Badge className="bg-blue-500 text-white">
+                                        {recruiterCount} Recruiter{recruiterCount !== 1 ? 's' : ''}
+                                    </Badge>
+                                )}
+                                {studentCount > 0 && (
+                                    <Badge className="bg-green-500 text-white">
+                                        {studentCount} Student{studentCount !== 1 ? 's' : ''}
+                                    </Badge>
+                                )}
+                                {recipients.slice(0, 5).map((recipient, index) => (
+                                    <motion.div
+                                        key={recipient.id}
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ delay: index * 0.05 }}
+                                    >
+                                        <Badge variant="outline" className="bg-white">
+                                            {recipient.name}
+                                        </Badge>
+                                    </motion.div>
+                                ))}
+                                {recipients.length > 5 && (
+                                    <Badge variant="outline" className="bg-white">
+                                        +{recipients.length - 5} more
+                                    </Badge>
+                                )}
+                            </div>
+                        </motion.div>
+
+                        {/* Template Selection */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="mb-6"
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="text-sm font-medium text-slate-700">
+                                    Select Template (Optional)
+                                </label>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowUploadModal(true)}
+                                    className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                >
+                                    <Upload className="w-4 h-4 mr-1" />
+                                    Upload Template
                                 </Button>
                             </div>
-                        </CardHeader>
-
-                        <CardContent className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-                            {/* Recipients Display */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                                className="mb-6"
-                            >
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Users className="w-4 h-4 text-slate-600" />
-                                    <h3 className="font-semibold text-slate-700">Recipients</h3>
-                                </div>
-                                <div className="flex flex-wrap gap-2 p-4 bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-lg border border-slate-200">
-                                    {recruiterCount > 0 && (
-                                        <Badge className="bg-blue-500 text-white">
-                                            {recruiterCount} Recruiter{recruiterCount !== 1 ? 's' : ''}
-                                        </Badge>
-                                    )}
-                                    {studentCount > 0 && (
-                                        <Badge className="bg-green-500 text-white">
-                                            {studentCount} Student{studentCount !== 1 ? 's' : ''}
-                                        </Badge>
-                                    )}
-                                    {recipients.slice(0, 5).map((recipient, index) => (
-                                        <motion.div
-                                            key={recipient.id}
-                                            initial={{ opacity: 0, scale: 0.8 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            transition={{ delay: index * 0.05 }}
-                                        >
-                                            <Badge variant="outline" className="bg-white">
-                                                {recipient.name}
-                                            </Badge>
-                                        </motion.div>
+                            <Select value={selectedTemplateId} onValueChange={handleTemplateSelect}>
+                                <SelectTrigger className="bg-white border-slate-300 focus:ring-purple-500">
+                                    <SelectValue placeholder="Choose a template or create from scratch" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Start from scratch</SelectItem>
+                                    {templatesData?.data?.map((template) => (
+                                        <SelectItem key={template.id} value={template.id}>
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">{template.name}</span>
+                                                {template.description && (
+                                                    <span className="text-xs text-slate-500">{template.description}</span>
+                                                )}
+                                            </div>
+                                        </SelectItem>
                                     ))}
-                                    {recipients.length > 5 && (
-                                        <Badge variant="outline" className="bg-white">
-                                            +{recipients.length - 5} more
-                                        </Badge>
-                                    )}
-                                </div>
-                            </motion.div>
+                                </SelectContent>
+                            </Select>
+                        </motion.div>
 
-                            {/* Template Selection */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
-                                className="mb-6"
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <label className="text-sm font-medium text-slate-700">
-                                        Select Template (Optional)
-                                    </label>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setShowUploadModal(true)}
-                                        className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                                    >
-                                        <Upload className="w-4 h-4 mr-1" />
-                                        Upload Template
-                                    </Button>
-                                </div>
-                                <Select value={selectedTemplateId} onValueChange={handleTemplateSelect}>
-                                    <SelectTrigger className="bg-white border-slate-300 focus:ring-purple-500">
-                                        <SelectValue placeholder="Choose a template or create from scratch" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">Start from scratch</SelectItem>
-                                        {templatesData?.data?.map((template) => (
-                                            <SelectItem key={template.id} value={template.id}>
-                                                <div className="flex flex-col">
-                                                    <span className="font-medium">{template.name}</span>
-                                                    {template.description && (
-                                                        <span className="text-xs text-slate-500">{template.description}</span>
-                                                    )}
-                                                </div>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </motion.div>
-
-                            {/* AI Generator Section */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.3 }}
-                                className="mb-6 p-5 bg-gradient-to-br from-purple-50 via-blue-50 to-purple-50 rounded-xl border border-purple-200"
-                            >
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Sparkles className="w-5 h-5 text-purple-600" />
-                                    <h3 className="font-semibold text-purple-900">AI Email Generator</h3>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                                            Email Purpose
-                                        </label>
-                                        <Input
-                                            placeholder="e.g., Job opportunity, networking..."
-                                            value={emailPurpose}
-                                            onChange={(e) => setEmailPurpose(e.target.value)}
-                                            className="bg-white border-purple-200 focus:ring-purple-500"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                                            Tone
-                                        </label>
-                                        <Select value={emailTone} onValueChange={setEmailTone}>
-                                            <SelectTrigger className="bg-white border-purple-200 focus:ring-purple-500">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="professional">Professional</SelectItem>
-                                                <SelectItem value="friendly">Friendly</SelectItem>
-                                                <SelectItem value="formal">Formal</SelectItem>
-                                                <SelectItem value="casual">Casual</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                                <Button
-                                    onClick={handleGenerateWithAI}
-                                    disabled={generateMutation.isPending}
-                                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
-                                >
-                                    {generateMutation.isPending ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                            Generating with AI...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Sparkles className="w-4 h-4 mr-2" />
-                                            Generate with AI
-                                        </>
-                                    )}
-                                </Button>
-                                {generatedWithAI && (
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        className="mt-3 flex items-center gap-2 text-sm text-green-700 bg-green-50 p-2 rounded-lg"
-                                    >
-                                        <CheckCircle2 className="w-4 h-4" />
-                                        Email generated with AI! Feel free to edit.
-                                    </motion.div>
-                                )}
-                            </motion.div>
-
-                            {/* Email Editor */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.4 }}
-                                className="space-y-4"
-                            >
+                        {/* AI Generator Section */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="mb-6 p-5 bg-gradient-to-br from-purple-50 via-blue-50 to-purple-50 rounded-xl border border-purple-200"
+                        >
+                            <div className="flex items-center gap-2 mb-3">
+                                <Sparkles className="w-5 h-5 text-purple-600" />
+                                <h3 className="font-semibold text-purple-900">AI Email Generator</h3>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                                        Subject Line
+                                        Email Purpose
                                     </label>
                                     <Input
-                                        placeholder="Enter email subject..."
-                                        value={subject}
-                                        onChange={(e) => setSubject(e.target.value)}
-                                        className="bg-white border-slate-300 focus:ring-purple-500"
+                                        placeholder="e.g., Job opportunity, networking..."
+                                        value={emailPurpose}
+                                        onChange={(e) => setEmailPurpose(e.target.value)}
+                                        className="bg-white border-purple-200 focus:ring-purple-500"
                                     />
                                 </div>
-
                                 <div>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <label className="text-sm font-medium text-slate-700">
-                                            Email Content
-                                        </label>
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                                        Tone
+                                    </label>
+                                    <Select value={emailTone} onValueChange={setEmailTone}>
+                                        <SelectTrigger className="bg-white border-purple-200 focus:ring-purple-500">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="professional">Professional</SelectItem>
+                                            <SelectItem value="friendly">Friendly</SelectItem>
+                                            <SelectItem value="formal">Formal</SelectItem>
+                                            <SelectItem value="casual">Casual</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <Button
+                                onClick={handleGenerateWithAI}
+                                disabled={generateMutation.isPending}
+                                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                            >
+                                {generateMutation.isPending ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Generating with AI...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Sparkles className="w-4 h-4 mr-2" />
+                                        Generate with AI
+                                    </>
+                                )}
+                            </Button>
+                            {generatedWithAI && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="mt-3 flex items-center gap-2 text-sm text-green-700 bg-green-50 p-2 rounded-lg"
+                                >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Email generated with AI! Feel free to edit.
+                                </motion.div>
+                            )}
+                        </motion.div>
+
+                        {/* Email Editor */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.4 }}
+                            className="space-y-4"
+                        >
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    Subject Line
+                                </label>
+                                <Input
+                                    placeholder="Enter email subject..."
+                                    value={subject}
+                                    onChange={(e) => setSubject(e.target.value)}
+                                    className="bg-white border-slate-300 focus:ring-purple-500"
+                                />
+                            </div>
+
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-sm font-medium text-slate-700">
+                                        Email Content
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                                if (!content || !content.trim()) {
+                                                    toast.error('Please add content first');
+                                                    return;
+                                                }
+                                                improveMutation.mutate(content);
+                                            }}
+                                            disabled={improveMutation.isPending || !content.trim()}
+                                            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                        >
+                                            {improveMutation.isPending ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                                    Improving...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Sparkles className="w-4 h-4 mr-1" />
+                                                    Improve with AI
+                                                </>
+                                            )}
+                                        </Button>
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -471,197 +512,199 @@ export default function EmailComposer({
                                             {isPreview ? 'Edit' : 'Preview'}
                                         </Button>
                                     </div>
-
-                                    {isPreview ? (
-                                        <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            className="min-h-[300px] p-6 bg-white rounded-lg border border-slate-300"
-                                            dangerouslySetInnerHTML={{ __html: content }}
-                                        />
-                                    ) : (
-                                        <Textarea
-                                            placeholder="Enter email content... You can use HTML formatting."
-                                            value={content}
-                                            onChange={(e) => setContent(e.target.value)}
-                                            className="min-h-[300px] bg-white border-slate-300 focus:ring-purple-500 font-mono text-sm"
-                                        />
-                                    )}
                                 </div>
-                            </motion.div>
 
-                            {/* Send Button */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.5 }}
-                                className="mt-6 flex gap-3"
+                                {isPreview ? (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        className="min-h-[300px] p-6 bg-white rounded-lg border border-slate-300"
+                                        dangerouslySetInnerHTML={{ __html: content }}
+                                    />
+                                ) : (
+                                    <Textarea
+                                        placeholder="Enter email content... You can use HTML formatting."
+                                        value={content}
+                                        onChange={(e) => setContent(e.target.value)}
+                                        className="min-h-[300px] bg-white border-slate-300 focus:ring-purple-500 font-mono text-sm"
+                                    />
+                                )}
+                            </div>
+                        </motion.div>
+
+                        {/* Send Button */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 }}
+                            className="mt-6 flex gap-3"
+                        >
+                            <Button
+                                variant="outline"
+                                onClick={onClose}
+                                className="flex-1"
                             >
-                                <Button
-                                    variant="outline"
-                                    onClick={onClose}
-                                    className="flex-1"
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    onClick={handleSend}
-                                    disabled={sendMutation.isPending || !subject.trim() || !content.trim()}
-                                    className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
-                                >
-                                    {sendMutation.isPending ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                            Sending...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Send className="w-4 h-4 mr-2" />
-                                            Send to {recipients.length} recipient{recipients.length !== 1 ? 's' : ''}
-                                        </>
-                                    )}
-                                </Button>
-                            </motion.div>
-                        </CardContent>
-                    </Card>
-                </motion.div>
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleSend}
+                                disabled={sendMutation.isPending || !subject.trim() || !content.trim()}
+                                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                            >
+                                {sendMutation.isPending ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Sending...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Send className="w-4 h-4 mr-2" />
+                                        Send to {recipients.length} recipient{recipients.length !== 1 ? 's' : ''}
+                                    </>
+                                )}
+                            </Button>
+                        </motion.div>
+                    </CardContent>
+                </Card>
             </motion.div>
 
             {/* Upload Template Modal */}
-            {showUploadModal && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-                    onClick={() => setShowUploadModal(false)}
-                >
+            <AnimatePresence>
+                {showUploadModal && (
                     <motion.div
-                        initial={{ scale: 0.9, y: 20 }}
-                        animate={{ scale: 1, y: 0 }}
-                        exit={{ scale: 0.9, y: 20 }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-full max-w-lg"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+                        onClick={() => setShowUploadModal(false)}
                     >
-                        <Card className="border-none shadow-2xl">
-                            <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
-                                            <Upload className="w-5 h-5 text-white" />
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.9, y: 20 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full max-w-lg"
+                        >
+                            <Card className="border-none shadow-2xl">
+                                <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+                                                <Upload className="w-5 h-5 text-white" />
+                                            </div>
+                                            <div>
+                                                <CardTitle className="text-xl">Upload Email Template</CardTitle>
+                                                <p className="text-sm text-slate-600 mt-1">Just select your HTML file and upload</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <CardTitle className="text-xl">Upload Email Template</CardTitle>
-                                            <p className="text-sm text-slate-600 mt-1">Just select your HTML file and upload</p>
-                                        </div>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => setShowUploadModal(false)}
-                                        className="hover:bg-red-50 hover:text-red-600 rounded-full"
-                                    >
-                                        <X className="w-5 h-5" />
-                                    </Button>
-                                </div>
-                            </CardHeader>
-
-                            <CardContent className="p-6 space-y-6">
-                                {/* File Upload */}
-                                <div>
-                                    <div className="relative">
-                                        <input
-                                            type="file"
-                                            accept=".html,.htm"
-                                            onChange={handleFileSelect}
-                                            className="hidden"
-                                            id="template-upload"
-                                        />
-                                        <label
-                                            htmlFor="template-upload"
-                                            className="flex flex-col items-center justify-center w-full p-8 border-2 border-dashed border-slate-300 rounded-xl hover:border-emerald-400 hover:bg-emerald-50/50 cursor-pointer transition-all group"
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => setShowUploadModal(false)}
+                                            className="hover:bg-red-50 hover:text-red-600 rounded-full"
                                         >
-                                            {selectedFile ? (
-                                                <motion.div
-                                                    initial={{ scale: 0.9 }}
-                                                    animate={{ scale: 1 }}
-                                                    className="flex flex-col items-center gap-3"
-                                                >
-                                                    <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
-                                                        <FileText className="w-8 h-8 text-emerald-600" />
-                                                    </div>
+                                            <X className="w-5 h-5" />
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+
+                                <CardContent className="p-6 space-y-6">
+                                    {/* File Upload */}
+                                    <div>
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                accept=".html,.htm"
+                                                onChange={handleFileSelect}
+                                                className="hidden"
+                                                id="template-upload"
+                                            />
+                                            <label
+                                                htmlFor="template-upload"
+                                                className="flex flex-col items-center justify-center w-full p-8 border-2 border-dashed border-slate-300 rounded-xl hover:border-emerald-400 hover:bg-emerald-50/50 cursor-pointer transition-all group"
+                                            >
+                                                {selectedFile ? (
+                                                    <motion.div
+                                                        initial={{ scale: 0.9 }}
+                                                        animate={{ scale: 1 }}
+                                                        className="flex flex-col items-center gap-3"
+                                                    >
+                                                        <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
+                                                            <FileText className="w-8 h-8 text-emerald-600" />
+                                                        </div>
+                                                        <div className="text-center">
+                                                            <p className="font-semibold text-slate-700 text-lg">{selectedFile.name}</p>
+                                                            <p className="text-sm text-slate-500 mt-1">
+                                                                {(selectedFile.size / 1024).toFixed(2)} KB
+                                                            </p>
+                                                            <p className="text-xs text-emerald-600 mt-2">✓ Ready to upload</p>
+                                                        </div>
+                                                    </motion.div>
+                                                ) : (
                                                     <div className="text-center">
-                                                        <p className="font-semibold text-slate-700 text-lg">{selectedFile.name}</p>
-                                                        <p className="text-sm text-slate-500 mt-1">
-                                                            {(selectedFile.size / 1024).toFixed(2)} KB
+                                                        <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4 group-hover:text-emerald-500 transition-colors" />
+                                                        <p className="text-base font-medium text-slate-700 mb-1">
+                                                            Drop your HTML file here
                                                         </p>
-                                                        <p className="text-xs text-emerald-600 mt-2">✓ Ready to upload</p>
+                                                        <p className="text-sm text-slate-500 mb-2">or click to browse</p>
+                                                        <p className="text-xs text-slate-400">
+                                                            Supports .html and .htm files (max 5MB)
+                                                        </p>
                                                     </div>
-                                                </motion.div>
-                                            ) : (
-                                                <div className="text-center">
-                                                    <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4 group-hover:text-emerald-500 transition-colors" />
-                                                    <p className="text-base font-medium text-slate-700 mb-1">
-                                                        Drop your HTML file here
-                                                    </p>
-                                                    <p className="text-sm text-slate-500 mb-2">or click to browse</p>
-                                                    <p className="text-xs text-slate-400">
-                                                        Supports .html and .htm files (max 5MB)
-                                                    </p>
-                                                </div>
-                                            )}
+                                                )}
+                                            </label>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-3 text-center">
+                                            💡 Template name and subject will be auto-detected from your HTML
+                                        </p>
+                                    </div>
+
+                                    {/* AI Refinement Toggle */}
+                                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-200">
+                                        <div className="flex items-center gap-3">
+                                            <Sparkles className="w-5 h-5 text-purple-600" />
+                                            <div>
+                                                <p className="font-semibold text-slate-800">Refine with AI</p>
+                                                <p className="text-xs text-slate-600">
+                                                    Auto-enhance styling and make copy professional
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={uploadData.refineWithAI}
+                                                onChange={(e) => setUploadData(prev => ({ ...prev, refineWithAI: e.target.checked }))}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
                                         </label>
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-3 text-center">
-                                        💡 Template name and subject will be auto-detected from your HTML
-                                    </p>
-                                </div>
 
-                                {/* AI Refinement Toggle */}
-                                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-200">
-                                    <div className="flex items-center gap-3">
-                                        <Sparkles className="w-5 h-5 text-purple-600" />
-                                        <div>
-                                            <p className="font-semibold text-slate-800">Refine with AI</p>
-                                            <p className="text-xs text-slate-600">
-                                                Auto-enhance styling and make copy professional
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={uploadData.refineWithAI}
-                                            onChange={(e) => setUploadData(prev => ({ ...prev, refineWithAI: e.target.checked }))}
-                                            className="sr-only peer"
-                                        />
-                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                                    </label>
-                                </div>
-
-                                {/* Upload Button */}
-                                <Button
-                                    onClick={handleUpload}
-                                    disabled={uploadMutation.isPending || !selectedFile}
-                                    className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-6 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
-                                >
-                                    {uploadMutation.isPending ? (
-                                        <>
-                                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                                            {uploadData.refineWithAI ? 'Uploading & Refining with AI...' : 'Uploading...'}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Upload className="w-5 h-5 mr-2" />
-                                            Upload Template
-                                        </>
-                                    )}
-                                </Button>
-                            </CardContent>
-                        </Card>
+                                    {/* Upload Button */}
+                                    <Button
+                                        onClick={handleUpload}
+                                        disabled={uploadMutation.isPending || !selectedFile}
+                                        className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-6 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                                    >
+                                        {uploadMutation.isPending ? (
+                                            <>
+                                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                                {uploadData.refineWithAI ? 'Uploading & Refining with AI...' : 'Uploading...'}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload className="w-5 h-5 mr-2" />
+                                                Upload Template
+                                            </>
+                                        )}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
                     </motion.div>
-                </motion.div>
-            )}
-        </AnimatePresence>
+                )}
+            </AnimatePresence>
+        </motion.div>
     );
 }

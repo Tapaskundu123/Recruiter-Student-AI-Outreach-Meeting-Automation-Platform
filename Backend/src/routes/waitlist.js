@@ -14,16 +14,18 @@ router.post(
     [
         body('name').trim().notEmpty().withMessage('Name is required'),
         body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
-        body('phone').optional().trim(),
-        body('university').optional().trim(),
-        body('major').optional().trim(),
-        body('graduationYear').optional().isInt({ min: 2020, max: 2035 }).toInt(),
-        body('country').optional().trim(),
-        body('linkedin').optional().isURL({ require_protocol: true }).withMessage('Valid LinkedIn URL required')
+        body('phone').optional({ checkFalsy: true }).trim(),
+        body('university').optional({ checkFalsy: true }).trim(),
+        body('major').optional({ checkFalsy: true }).trim(),
+        body('graduationYear').optional({ checkFalsy: true }).isInt({ min: 2020, max: 2035 }).toInt(),
+        body('country').optional({ checkFalsy: true }).trim(),
+        body('linkedin').optional({ checkFalsy: true }).isURL({ require_protocol: true }).withMessage('Valid LinkedIn URL required')
     ],
     async (req, res) => {
+        console.log('Waitlist execution body:', req.body);
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
+            console.log('Waitlist validation errors:', errors.array());
             return res.status(400).json({ errors: errors.array() });
         }
 

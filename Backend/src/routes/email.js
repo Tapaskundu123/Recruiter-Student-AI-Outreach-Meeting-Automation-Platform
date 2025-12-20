@@ -514,4 +514,45 @@ router.post('/refine/:id', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/email/improve-template
+ * Improve HTML email template content on-the-fly (without saving to database)
+ * This is useful for improving templates in the email composer
+ */
+router.post('/improve-template',
+    [
+        body('htmlContent').trim().notEmpty().withMessage('HTML content is required')
+    ],
+    async (req, res) => {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
+            }
+
+            const { htmlContent } = req.body;
+
+            // Refine with AI
+            console.log('Improving template with AI...');
+            const improvedContent = await refineEmailTemplate(htmlContent);
+
+            res.json({
+                success: true,
+                data: {
+                    original: htmlContent,
+                    improved: improvedContent
+                },
+                message: 'Template improved with AI successfully'
+            });
+
+        } catch (error) {
+            console.error('Error improving template:', error);
+            res.status(500).json({
+                error: 'Failed to improve template',
+                message: error.message
+            });
+        }
+    }
+);
+
 export default router;

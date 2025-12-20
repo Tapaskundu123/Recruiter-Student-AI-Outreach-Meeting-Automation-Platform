@@ -31,7 +31,12 @@ export default function LandingPage() {
         setIsSubmitting(true);
 
         try {
-            await api.joinWaitlist(formData);
+            // Filter out empty fields
+            const cleanedData = Object.fromEntries(
+                Object.entries(formData).filter(([_, v]) => v !== '')
+            );
+
+            await api.joinWaitlist(cleanedData);
             toast.success('Successfully joined the waitlist! 🎉');
             // Reset all fields including linkedin
             setFormData({
