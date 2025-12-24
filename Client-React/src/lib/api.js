@@ -89,8 +89,12 @@ export const api = {
     checkAvailability: (params) => apiClient.get(`/public/availability`, { params }),
     bookMeeting: (data) => apiClient.post(`/public/book`, data),
 
-    // --- ANALYTICS LEGACY (Optional, for backward compatibility) ---
-    // getDashboardStats was mapped to /admin/stats above.
+    // --- ANALYTICS (Enhanced with date range support) ---
+    getCampaignAnalytics: (params) => apiClient.get('/analytics/campaigns', { params }),
+    getMeetingAnalytics: (params) => apiClient.get('/analytics/meetings', { params }),
+    getLeadsAnalytics: (params) => apiClient.get('/analytics/leads', { params }),
+    getTrendsAnalytics: (params) => apiClient.get('/analytics/trends', { params }),
+    getEngagementHeatmap: (params) => apiClient.get('/analytics/engagement-heatmap', { params }),
 
     // --- EMAIL ---
     getEmailTemplates: (params) => apiClient.get('/email/templates', { params }),

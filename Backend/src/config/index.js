@@ -16,9 +16,9 @@ const config = {
     REDIS_HOST: process.env.REDIS_HOST || 'localhost',
     REDIS_PORT: parseInt(process.env.REDIS_PORT, 10) || 6379,
 
-    // OpenAI
+    // Gemini AI
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-    GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+    GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
 
     // Email
     EMAIL_SERVICE: process.env.EMAIL_SERVICE || 'smtp',
@@ -70,6 +70,15 @@ const config = {
         DURATION: parseInt(process.env.MEETING_DURATION, 10) || 30,
         BUFFER: parseInt(process.env.MEETING_BUFFER, 10) || 15,
         TIMEZONE: process.env.TIMEZONE || 'America/New_York'
+    },
+
+    // Pinecone Vector Database
+    PINECONE: {
+        API_KEY: process.env.PINECONE_API_KEY,
+        ENVIRONMENT: process.env.PINECONE_ENVIRONMENT || 'us-east-1-aws',
+        INDEX_NAME: process.env.PINECONE_INDEX_NAME || 'email-context',
+        DIMENSION: parseInt(process.env.PINECONE_DIMENSION, 10) || 768,
+        METRIC: process.env.PINECONE_METRIC || 'cosine'
     }
 };
 

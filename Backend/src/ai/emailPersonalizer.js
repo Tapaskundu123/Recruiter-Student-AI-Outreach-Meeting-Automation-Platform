@@ -1,11 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import config from "../config/index.js"; import Handlebars from "handlebars";
+import config from "../config/index.js";
+import Handlebars from "handlebars";
 
 const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
-
-const model = genAI.getGenerativeModel({
-  model: config.GEMINI_MODEL || "gemini-1.5-flash",
-});
 
 /**
  * Personalize email template using Gemini AI
@@ -34,18 +31,8 @@ Instructions:
 - Return ONLY the personalized email content in valid HTML
 `;
 
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 1000,
-      },
-    });
+    const model = genAI.getGenerativeModel({ model: config.GEMINI_MODEL || "gemini-2.5-flash" });
+    const result = await model.generateContent(prompt);
 
     return result.response.text().trim();
   } catch (error) {
@@ -80,18 +67,8 @@ Rules:
 - Return ONLY the subject line
 `;
 
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.8,
-        maxOutputTokens: 50,
-      },
-    });
+    const model = genAI.getGenerativeModel({ model: config.GEMINI_MODEL || "gemini-2.5-flash" });
+    const result = await model.generateContent(prompt);
 
     return result.response.text().replace(/"/g, "").trim();
   } catch (error) {
@@ -137,18 +114,8 @@ OUTPUT FORMAT (JSON):
 Return ONLY the JSON object, no other text.
 `;
 
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 1500,
-      },
-    });
+    const model = genAI.getGenerativeModel({ model: config.GEMINI_MODEL || "gemini-2.5-flash" });
+    const result = await model.generateContent(prompt);
 
     const responseText = result.response.text().trim();
 
@@ -257,13 +224,9 @@ REFINEMENT REQUIREMENTS:
 Return ONLY the refined HTML template with all improvements applied. Do not include any explanations or markdown code blocks.
 `;
 
+    const model = genAI.getGenerativeModel({ model: config.GEMINI_MODEL || "gemini-2.5-flash" });
     const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }],
-        },
-      ],
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.6,
         maxOutputTokens: 3000,
@@ -290,9 +253,113 @@ Return ONLY the refined HTML template with all improvements applied. Do not incl
   }
 }
 
+/**
+ * Generate email with context from RAG system
+ * Uses retrieved context chunks to create highly personalized, context-aware emails
+ */
+export async function generateEmailWithContext({ recipientData, purpose, tone, contextChunks }) {
+  try {
+    // Format context for prompt
+    const contextText = contextChunks && contextChunks.length > 0
+      ? contextChunks.map((chunk, idx) =>
+        `[Context ${idx + 1} from ${chunk.fileName}]:\n${chunk.text}`
+      ).join('\n\n')
+      : '';
+
+    const prompt = `
+You are an expert email copywriter specializing in professional, human-like outreach emails.
+
+${contextText ? `
+IMPORTANT COMPANY/APP CONTEXT:
+The following information has been retrieved from our documents and should be referenced naturally in the email:
+
+${contextText}
+
+Use this context to make the email specific and informative. Reference actual features, benefits, or details from the context.
+` : ''}
+
+RECIPIENT INFORMATION:
+${JSON.stringify(recipientData, null, 2)}
+
+EMAIL PURPOSE: ${purpose}
+DESIRED TONE: ${tone}
+
+INSTRUCTIONS:
+1. Generate a compelling subject line (under 60 characters)
+2. Write a professional email body that:
+   - Starts with a warm, personalized greeting
+   ${contextText ? '- Naturally incorporates specific details from the provided context' : ''}
+   - References the recipient's background (company, university, role, etc.) if available
+   - Clearly communicates the purpose
+   - Feels human and genuine, NOT robotic or templated
+   ${contextText ? '- Highlights relevant features or benefits from our app/company context' : ''}
+   - Includes a clear, non-pushy call-to-action
+   - Ends professionally
+3. Use proper HTML formatting for email
+4. CRITICAL: Avoid ALL spam trigger words including:
+   - FREE, URGENT, ACT NOW, LIMITED TIME, GUARANTEED
+   - Excessive punctuation like !!!
+   - All caps words
+   - Phrases like "CLICK HERE", "BUY NOW"
+5. Keep it concise (200-300 words max)
+
+OUTPUT FORMAT (JSON):
+{
+  "subject": "Your professional subject line here",
+  "content": "<html email content with inline CSS>"
+}
+
+Return ONLY the JSON object, no other text.
+`;
+
+    const model = genAI.getGenerativeModel({ model: config.GEMINI_MODEL || "gemini-2.5-flash" });
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2000,
+      },
+    });
+
+    const responseText = result.response.text().trim();
+
+    // Try to parse JSON response
+    let jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        subject: parsed.subject || `Regarding ${purpose}`,
+        content: parsed.content || responseText
+      };
+    }
+
+    // Fallback: treat entire response as content
+    return {
+      subject: `Regarding ${purpose}`,
+      content: responseText
+    };
+
+  } catch (error) {
+    console.error("Context-aware email generation error (Gemini):", error.message);
+
+    // Fallback to basic template
+    return {
+      subject: `Hello ${recipientData.name || ""}`,
+      content: `
+        <p>Hi ${recipientData.name || "there"},</p>
+        <p>I hope this email finds you well.</p>
+        <p>${purpose}</p>
+        <p>Looking forward to connecting with you.</p>
+        <p>Best regards</p>
+      `
+    };
+  }
+}
+
 export default {
   personalizeEmail,
   generateSubject,
   generateEmailContent,
   refineEmailTemplate,
+  generateEmailWithContext,
 };

@@ -555,4 +555,86 @@ router.post('/improve-template',
     }
 );
 
+/**
+ * POST /api/email/generate-with-context
+ * Generate email using RAG (context from uploaded PDFs)
+ */
+router.post('/generate-with-context',
+    [
+        body('recipientType').isIn(['recruiter', 'student']).withMessage('Invalid recipient type'),
+        body('recipientData').isObject().withMessage('Recipient data is required'),
+        body('purpose').trim().notEmpty().withMessage('Purpose is required'),
+        body('tone').optional().trim(),
+        body('useContext').optional().isBoolean(),
+        body('contextCategory').optional().trim()
+    ],
+    async (req, res) => {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
+            }
+
+            const { recipientType, recipientData, purpose, tone, useContext, contextCategory } = req.body;
+
+            let emailContent, subject;
+            let contextChunks = [];
+
+            // If useContext is true, fetch relevant context from Pinecone
+            if (useContext !== false) {
+                try {
+                    const { searchContext } = await import('../services/ragService.js');
+
+                    // Search for relevant context based on purpose
+                    contextChunks = await searchContext(purpose, {
+                        topK: 3,
+                        category: contextCategory || null,
+                        minScore: 0.7
+                    });
+
+                    console.log(`📚 Found ${contextChunks.length} relevant context chunks`);
+                } catch (contextError) {
+                    console.warn('Failed to fetch context, proceeding without it:', contextError.message);
+                    // Continue without context
+                }
+            }
+
+            // Generate email with context
+            const { generateEmailWithContext } = await import('../ai/emailPersonalizer.js');
+
+            const result = await generateEmailWithContext({
+                recipientData,
+                purpose,
+                tone: tone || 'professional and friendly',
+                contextChunks
+            });
+
+            emailContent = result.content;
+            subject = result.subject;
+
+            res.json({
+                success: true,
+                data: {
+                    subject,
+                    content: emailContent,
+                    contextsUsed: contextChunks.map(c => ({
+                        fileName: c.fileName,
+                        category: c.category,
+                        score: c.score
+                    }))
+                },
+                message: contextChunks.length > 0
+                    ? `Email generated with ${contextChunks.length} context sources`
+                    : 'Email generated without additional context'
+            });
+        } catch (error) {
+            console.error('Error generating email with context:', error);
+            res.status(500).json({
+                error: 'Failed to generate email',
+                message: error.message
+            });
+        }
+    }
+);
+
 export default router;

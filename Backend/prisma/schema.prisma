@@ -284,3 +284,23 @@ model EmailTemplate {
   @@index([category])
   @@index([isActive])
 }
+
+// Document Model (for PDF/text documents uploaded for RAG context)
+model Document {
+  id          String   @id @default(uuid())
+  fileName    String   // Original filename
+  fileSize    Int      // Size in bytes
+  category    String   @default("general") // "app_info", "company_info", "product_details", "general", etc.
+  uploadedBy  String?  // Admin ID who uploaded (if auth implemented)
+  uploadDate  DateTime @default(now())
+  status      String   @default("processing") // "processing", "ready", "failed"
+  chunkCount  Int      @default(0) // Number of text chunks created
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([category])
+  @@index([status])
+  @@index([uploadDate])
+  @@map("documents")
+}

@@ -16,7 +16,8 @@ router.get('/dashboard', async (req, res) => {
             totalMeetings,
             activeCampaigns,
             upcomingMeetings,
-            recentScraping
+            recentScraping,
+            totalEmailTemplates
         ] = await Promise.all([
             prisma.recruiter.count(),
             prisma.student.count(),
@@ -33,7 +34,8 @@ router.get('/dashboard', async (req, res) => {
                 where: {
                     startedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
                 }
-            })
+            }),
+            prisma.emailTemplate.count()
         ]);
 
         // Campaign performance
@@ -58,7 +60,8 @@ router.get('/dashboard', async (req, res) => {
                 totalMeetings,
                 activeCampaigns,
                 upcomingMeetings,
-                recentScrapingJobs: recentScraping
+                recentScrapingJobs: recentScraping,
+                totalEmailTemplates
             },
             campaignMetrics: {
                 totalSent: campaignStats._sum.sentCount || 0,
@@ -84,12 +87,22 @@ router.get('/dashboard', async (req, res) => {
 
 /**
  * GET /api/analytics/campaigns
- * Get campaign performance analytics
+ * Get campaign performance analytics with optional date range
  */
 router.get('/campaigns', async (req, res) => {
     try {
+        const { startDate, endDate } = req.query;
+
+        // Build where clause with date filtering
+        const whereClause = { status: 'completed' };
+        if (startDate || endDate) {
+            whereClause.completedAt = {};
+            if (startDate) whereClause.completedAt.gte = new Date(startDate);
+            if (endDate) whereClause.completedAt.lte = new Date(endDate);
+        }
+
         const campaigns = await prisma.campaign.findMany({
-            where: { status: 'completed' },
+            where: whereClause,
             select: {
                 id: true,
                 name: true,
@@ -98,10 +111,11 @@ router.get('/campaigns', async (req, res) => {
                 openedCount: true,
                 clickedCount: true,
                 bouncedCount: true,
-                completedAt: true
+                completedAt: true,
+                createdAt: true
             },
             orderBy: { completedAt: 'desc' },
-            take: 20
+            take: 50
         });
 
         const analyticsData = campaigns.map(campaign => ({
@@ -121,12 +135,12 @@ router.get('/campaigns', async (req, res) => {
             data: analyticsData,
             summary: {
                 totalCampaigns: campaigns.length,
-                avgOpenRate: (
-                    analyticsData.reduce((sum, c) => sum + parseFloat(c.openRate), 0) / campaigns.length
-                ).toFixed(2),
-                avgClickRate: (
-                    analyticsData.reduce((sum, c) => sum + parseFloat(c.clickRate), 0) / campaigns.length
-                ).toFixed(2)
+                avgOpenRate: campaigns.length > 0
+                    ? (analyticsData.reduce((sum, c) => sum + parseFloat(c.openRate), 0) / campaigns.length).toFixed(2)
+                    : '0',
+                avgClickRate: campaigns.length > 0
+                    ? (analyticsData.reduce((sum, c) => sum + parseFloat(c.clickRate), 0) / campaigns.length).toFixed(2)
+                    : '0'
             }
         });
     } catch (error) {
@@ -192,53 +206,157 @@ router.get('/meetings', async (req, res) => {
 });
 
 /**
- * GET /api/analytics/scraping
- * Get scraping performance analytics
+ * GET /api/analytics/leads
+ * Get CSV upload (leads) analytics - replaces scraping analytics
  */
-router.get('/scraping', async (req, res) => {
+router.get('/leads', async (req, res) => {
     try {
-        const logs = await prisma.scrapingLog.findMany({
-            where: {
-                startedAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
-            },
-            orderBy: { startedAt: 'desc' }
-        });
-
-        const byType = {
-            recruiter: logs.filter(l => l.jobType === 'recruiter'),
-            student: logs.filter(l => l.jobType === 'student')
-        };
+        const [totalRecruiters, totalStudents, totalEmailTemplates] = await Promise.all([
+            prisma.recruiter.count(),
+            prisma.student.count(),
+            prisma.emailTemplate.count()
+        ]);
 
         const summary = {
-            total: logs.length,
-            completed: logs.filter(l => l.status === 'completed').length,
-            failed: logs.filter(l => l.status === 'failed').length,
-            running: logs.filter(l => l.status === 'running').length,
-            totalRecordsFound: logs.reduce((sum, l) => sum + l.recordsFound, 0),
-            totalRecordsSaved: logs.reduce((sum, l) => sum + l.recordsSaved, 0)
+            totalRecruiters,
+            totalStudents,
+            totalLeads: totalRecruiters + totalStudents,
+            totalEmailTemplates
         };
 
         res.json({
             summary,
             byType: {
                 recruiter: {
-                    total: byType.recruiter.length,
-                    recordsFound: byType.recruiter.reduce((sum, l) => sum + l.recordsFound, 0),
-                    recordsSaved: byType.recruiter.reduce((sum, l) => sum + l.recordsSaved, 0)
+                    total: totalRecruiters,
+                    recordsSaved: totalRecruiters
                 },
                 student: {
-                    total: byType.student.length,
-                    recordsFound: byType.student.reduce((sum, l) => sum + l.recordsFound, 0),
-                    recordsSaved: byType.student.reduce((sum, l) => sum + l.recordsSaved, 0)
+                    total: totalStudents,
+                    recordsSaved: totalStudents
                 }
             },
-            recentLogs: logs.slice(0, 10)
+            templates: {
+                total: totalEmailTemplates
+            }
         });
     } catch (error) {
-        console.error('Scraping analytics error:', error);
+        console.error('Leads analytics error:', error);
         res.status(500).json({
             error: 'Server error',
-            message: 'Failed to fetch scraping analytics'
+            message: 'Failed to fetch leads analytics'
+        });
+    }
+});
+
+/**
+ * GET /api/analytics/trends
+ * Get time-series trends for campaigns
+ */
+router.get('/trends', async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+
+        const whereClause = {};
+        if (startDate || endDate) {
+            whereClause.completedAt = {};
+            if (startDate) whereClause.completedAt.gte = new Date(startDate);
+            if (endDate) whereClause.completedAt.lte = new Date(endDate);
+        }
+
+        const campaigns = await prisma.campaign.findMany({
+            where: {
+                ...whereClause,
+                status: 'completed'
+            },
+            select: {
+                completedAt: true,
+                sentCount: true,
+                openedCount: true,
+                clickedCount: true
+            },
+            orderBy: { completedAt: 'asc' }
+        });
+
+        // Group by day
+        const trendData = campaigns.reduce((acc, campaign) => {
+            const date = new Date(campaign.completedAt).toISOString().split('T')[0];
+            if (!acc[date]) {
+                acc[date] = {
+                    date,
+                    sent: 0,
+                    opened: 0,
+                    clicked: 0
+                };
+            }
+            acc[date].sent += campaign.sentCount;
+            acc[date].opened += campaign.openedCount;
+            acc[date].clicked += campaign.clickedCount;
+            return acc;
+        }, {});
+
+        const trends = Object.values(trendData).map(day => ({
+            ...day,
+            openRate: day.sent > 0 ? ((day.opened / day.sent) * 100).toFixed(2) : 0,
+            clickRate: day.sent > 0 ? ((day.clicked / day.sent) * 100).toFixed(2) : 0
+        }));
+
+        res.json({ data: trends });
+    } catch (error) {
+        console.error('Trends analytics error:', error);
+        res.status(500).json({
+            error: 'Server error',
+            message: 'Failed to fetch trends analytics'
+        });
+    }
+});
+
+/**
+ * GET /api/analytics/engagement-heatmap
+ * Get email engagement patterns by day and hour
+ */
+router.get('/engagement-heatmap', async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+
+        const whereClause = { status: 'completed' };
+        if (startDate || endDate) {
+            whereClause.completedAt = {};
+            if (startDate) whereClause.completedAt.gte = new Date(startDate);
+            if (endDate) whereClause.completedAt.lte = new Date(endDate);
+        }
+
+        const campaigns = await prisma.campaign.findMany({
+            where: whereClause,
+            select: {
+                completedAt: true,
+                openedCount: true,
+                clickedCount: true
+            }
+        });
+
+        // Create heatmap data structure (7 days × 24 hours)
+        const heatmap = Array(7).fill(null).map(() => Array(24).fill(0));
+
+        campaigns.forEach(campaign => {
+            const date = new Date(campaign.completedAt);
+            const day = date.getDay(); // 0-6 (Sunday-Saturday)
+            const hour = date.getHours(); // 0-23
+            heatmap[day][hour] += campaign.openedCount + campaign.clickedCount;
+        });
+
+        const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const formattedData = heatmap.map((dayData, dayIndex) => ({
+            day: dayLabels[dayIndex],
+            hours: dayData
+        }));
+
+        res.json({ data: formattedData });
+    } catch (error) {
+        console.error('Engagement heatmap error:', error);
+        res.status(500).json({
+            error: 'Server error',
+            message: 'Failed to fetch engagement heatmap'
         });
     }
 });

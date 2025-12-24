@@ -1,7 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import config from "../config/index.js";
 
-const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY, {
+  apiVersion: "v1",
+});
 
 const model = genAI.getGenerativeModel({
   model: config.GEMINI_MODEL || "gemini-1.5-flash",
