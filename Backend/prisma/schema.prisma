@@ -53,6 +53,7 @@ model Student {
   degree            String?   // e.g., "B.Tech", "M.Tech", "BCA"
   platform          String?   // e.g., "GitHub", "University Directory"
   linkedIn          String?
+  github            String?   // GitHub profile URL
   resume            String?   // URL or path to resume
   status            String    @default("waitlist") // waitlist, contacted, scheduled, completed
   waitlistJoinedAt  DateTime  @default(now())

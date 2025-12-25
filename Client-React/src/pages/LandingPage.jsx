@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Sparkles, Zap, Users, Calendar, Mail, TrendingUp, ArrowRight } from 'lucide-react';
+import { Sparkles, Zap, Users, Calendar, Mail, TrendingUp, ArrowRight, Database, BarChart3, Target, Clock, FileText, Globe } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -15,7 +15,8 @@ export default function LandingPage() {
         major: '',
         graduationYear: '',
         country: '',
-        linkedin: ''  // Fixed: lowercase 'l'
+        linkedin: '',
+        github: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [waitlistCount, setWaitlistCount] = useState(0);
@@ -38,7 +39,7 @@ export default function LandingPage() {
 
             await api.joinWaitlist(cleanedData);
             toast.success('Successfully joined the waitlist! 🎉');
-            // Reset all fields including linkedin
+            // Reset all fields
             setFormData({
                 name: '',
                 email: '',
@@ -46,7 +47,8 @@ export default function LandingPage() {
                 major: '',
                 graduationYear: '',
                 country: '',
-                linkedin: ''
+                linkedin: '',
+                github: ''
             });
             setWaitlistCount(prev => prev + 1);
         } catch (error) {
@@ -119,7 +121,7 @@ export default function LandingPage() {
                         </motion.div>
                     </motion.div>
 
-                    {/* Feature Cards */}
+                    {/* Feature Cards - Expanded to 9 cards */}
                     <div className="grid md:grid-cols-3 gap-6 mb-20">
                         {features.map((feature, index) => (
                             <FeatureCard key={index} {...feature} index={index} />
@@ -215,16 +217,29 @@ export default function LandingPage() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1">
-                                    <Label htmlFor="linkedin" className="text-white">LinkedIn Profile URL</Label>
-                                    <Input
-                                        id="linkedin"
-                                        type="url"
-                                        value={formData.linkedin}
-                                        onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })}
-                                        className="mt-1 bg-white/5 border-white/10 text-white placeholder:text-slate-400"
-                                        placeholder="https://www.linkedin.com/in/johndoe"
-                                    />
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="linkedin" className="text-white">LinkedIn Profile URL</Label>
+                                        <Input
+                                            id="linkedin"
+                                            type="url"
+                                            value={formData.linkedin}
+                                            onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })}
+                                            className="mt-1 bg-white/5 border-white/10 text-white placeholder:text-slate-400"
+                                            placeholder="https://linkedin.com/in/johndoe"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="github" className="text-white">GitHub Profile URL</Label>
+                                        <Input
+                                            id="github"
+                                            type="url"
+                                            value={formData.github}
+                                            onChange={(e) => setFormData({ ...formData, github: e.target.value })}
+                                            className="mt-1 bg-white/5 border-white/10 text-white placeholder:text-slate-400"
+                                            placeholder="https://github.com/johndoe"
+                                        />
+                                    </div>
                                 </div>
 
                                 <Button
@@ -287,21 +302,25 @@ export default function LandingPage() {
     );
 }
 
-// Feature Card Component
+// Feature Card Component with enhanced animations
 function FeatureCard({ icon: Icon, title, description, index }) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 + index * 0.1 }}
-            whileHover={{ y: -5, scale: 1.02 }}
-            className="glass-effect rounded-xl p-6 border border-white/10 card-hover"
+            whileHover={{ y: -8, scale: 1.02 }}
+            className="glass-effect rounded-xl p-6 border border-white/10 card-hover-glow card-3d group"
         >
-            <div className="w-12 h-12 rounded-lg gradient-primary flex items-center justify-center mb-4">
-                <Icon className="w-6 h-6 text-white" />
-            </div>
-            <h3 className="text-xl font-semibold text-white mb-2">{title}</h3>
-            <p className="text-slate-300">{description}</p>
+            <motion.div
+                whileHover={{ rotate: 360, scale: 1.1 }}
+                transition={{ duration: 0.6 }}
+                className="w-14 h-14 rounded-lg gradient-primary flex items-center justify-center mb-4"
+            >
+                <Icon className="w-7 h-7 text-white" />
+            </motion.div>
+            <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-purple-300 transition-colors">{title}</h3>
+            <p className="text-slate-300 text-sm leading-relaxed">{description}</p>
         </motion.div>
     );
 }
@@ -350,22 +369,52 @@ function StepCard({ step, title, description, index }) {
     );
 }
 
-// Data
+// Data - Expanded feature cards to 9
 const features = [
     {
         icon: Zap,
         title: 'AI-Powered Scraping',
-        description: 'Automatically discover and enrich recruiter and student profiles from multiple sources.'
+        description: 'Automatically discover and enrich recruiter and student profiles from multiple sources with intelligent data extraction.'
     },
     {
         icon: Mail,
         title: 'Smart Email Campaigns',
-        description: 'Personalized outreach emails generated by AI for maximum engagement and response rates.'
+        description: 'Personalized outreach emails generated by AI for maximum engagement and response rates with A/B testing.'
     },
     {
         icon: Calendar,
         title: 'Auto Scheduling',
-        description: 'Seamless meeting coordination with Google Calendar integration and automated reminders.'
+        description: 'Seamless meeting coordination with Google Calendar integration and automated reminders for all participants.'
+    },
+    {
+        icon: Database,
+        title: 'RAG System',
+        description: 'Advanced Retrieval Augmented Generation for context-aware responses and intelligent data processing.'
+    },
+    {
+        icon: BarChart3,
+        title: 'Analytics Dashboard',
+        description: 'Comprehensive insights and metrics to track campaign performance, engagement rates, and ROI in real-time.'
+    },
+    {
+        icon: Target,
+        title: 'Smart Matching',
+        description: 'AI-driven matching algorithm that pairs recruiters with the most suitable candidates based on multiple factors.'
+    },
+    {
+        icon: Clock,
+        title: 'Real-time Tracking',
+        description: 'Monitor email opens, clicks, and responses in real-time with detailed engagement analytics and notifications.'
+    },
+    {
+        icon: FileText,
+        title: 'Template Management',
+        description: 'Create, manage, and optimize email templates with AI assistance for better conversion rates and consistency.'
+    },
+    {
+        icon: Globe,
+        title: 'Multi-platform Integration',
+        description: 'Connect with LinkedIn, GitHub, and other platforms to enrich candidate data and streamline your workflow.'
     }
 ];
 

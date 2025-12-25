@@ -19,7 +19,8 @@ router.post(
         body('major').optional({ checkFalsy: true }).trim(),
         body('graduationYear').optional({ checkFalsy: true }).isInt({ min: 2020, max: 2035 }).toInt(),
         body('country').optional({ checkFalsy: true }).trim(),
-        body('linkedin').optional({ checkFalsy: true }).isURL({ require_protocol: true }).withMessage('Valid LinkedIn URL required')
+        body('linkedin').optional({ checkFalsy: true }).isURL({ require_protocol: true }).withMessage('Valid LinkedIn URL required'),
+        body('github').optional({ checkFalsy: true }).isURL({ require_protocol: true }).withMessage('Valid GitHub URL required')
     ],
     async (req, res) => {
         console.log('Waitlist execution body:', req.body);
@@ -37,7 +38,8 @@ router.post(
             major,
             graduationYear,
             country,
-            linkedin // Fixed key name to match frontend (was 'linkedIn' in old code)
+            linkedin, // Fixed key name to match frontend (was 'linkedIn' in old code)
+            github
         } = req.body;
 
         try {
@@ -64,6 +66,7 @@ router.post(
                     graduationYear: graduationYear || null,
                     country: country || null,
                     linkedIn: linkedin || null, // Matches your Prisma schema field name
+                    github: github || null,
                     status: 'waitlist',
                     waitlistJoinedAt: new Date() // Explicitly set (though default exists)
                 }

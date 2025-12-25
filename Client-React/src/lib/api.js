@@ -110,6 +110,12 @@ export const api = {
     }),
     refineEmailTemplate: (id) => apiClient.post(`/email/refine/${id}`),
     improveEmailTemplate: (htmlContent) => apiClient.post('/email/improve-template', { htmlContent }),
+
+    // --- ADMIN AUTH ---
+    adminLogin: (credentials) => apiClient.post('/auth/admin/login', credentials),
+    adminLogout: () => apiClient.post('/auth/admin/logout'),
+    getAdminProfile: () => apiClient.get('/auth/admin/me'),
+    verifyAdminAuth: () => apiClient.post('/auth/admin/verify'),
 };
 
 export default apiClient;

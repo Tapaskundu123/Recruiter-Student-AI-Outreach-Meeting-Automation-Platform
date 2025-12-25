@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import config, { validateConfig } from './config/index.js';
@@ -21,6 +22,7 @@ import eventsRoutes from './routes/events.js';
 import availabilityRoutes from './routes/availability.js';
 import emailRoutes from './routes/email.js';
 import documentsRoutes from './routes/documents.js';
+import adminAuthRoutes from './routes/adminAuth.js';
 
 const app = express();
 
@@ -39,6 +41,7 @@ app.use(cors({
     credentials: true
 }));
 app.use(morgan(config.NODE_ENV === 'development' ? 'dev' : 'combined'));
+app.use(cookieParser()); // Add cookie parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -77,6 +80,7 @@ app.use(`${config.API_PREFIX}/events`, eventsRoutes);
 app.use(`${config.API_PREFIX}/availability`, availabilityRoutes);
 app.use(`${config.API_PREFIX}/email`, emailRoutes);
 app.use(`${config.API_PREFIX}/documents`, documentsRoutes);
+app.use(`${config.API_PREFIX}/auth/admin`, adminAuthRoutes);
 
 // 404 Handler
 app.use((req, res) => {

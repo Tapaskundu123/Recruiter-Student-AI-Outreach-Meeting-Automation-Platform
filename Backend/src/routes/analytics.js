@@ -16,7 +16,6 @@ router.get('/dashboard', async (req, res) => {
             totalMeetings,
             activeCampaigns,
             upcomingMeetings,
-            recentScraping,
             totalEmailTemplates
         ] = await Promise.all([
             prisma.recruiter.count(),
@@ -28,11 +27,6 @@ router.get('/dashboard', async (req, res) => {
                 where: {
                     scheduledTime: { gte: new Date() },
                     status: { in: ['scheduled', 'confirmed'] }
-                }
-            }),
-            prisma.scrapingLog.count({
-                where: {
-                    startedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
                 }
             }),
             prisma.emailTemplate.count()
@@ -60,7 +54,6 @@ router.get('/dashboard', async (req, res) => {
                 totalMeetings,
                 activeCampaigns,
                 upcomingMeetings,
-                recentScrapingJobs: recentScraping,
                 totalEmailTemplates
             },
             campaignMetrics: {
