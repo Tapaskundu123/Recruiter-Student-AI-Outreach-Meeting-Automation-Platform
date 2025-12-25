@@ -8,23 +8,43 @@ import {
     Users,
     TrendingUp,
     Menu,
-    X
+    X,
+    Clock,
+    File,
+    LogOut
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '../../lib/utils';
+import { useAdminAuth } from '../../contexts/AdminAuthContext';
+import { api } from '../../lib/api';
 
 const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
-    { icon: Database, label: 'Scraping', path: '/admin/scraping' },
+    { icon: Clock, label: 'Availability', path: '/admin/availability' },
     { icon: Mail, label: 'Campaigns', path: '/admin/campaigns' },
     { icon: Calendar, label: 'Meetings', path: '/admin/meetings' },
     { icon: Users, label: 'Leads', path: '/admin/leads' },
-    { icon: TrendingUp, label: 'Analytics', path: '/admin/analytics' }
+    { icon: TrendingUp, label: 'Analytics', path: '/admin/analytics' },
+    { icon: File, label: 'CSV Uploads', path: '/admin/csv-upload' }
 ];
 
 export default function DashboardLayout({ children }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const location = useLocation();
+    const { admin, logout } = useAdminAuth();
+
+    const handleLogout = async () => {
+        if (window.confirm('Are you sure you want to logout?')) {
+            try {
+                await api.adminLogout();
+            } catch (error) {
+                console.error('Logout error:', error);
+            } finally {
+                logout();
+                window.location.href = '/admin/login';
+            }
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
@@ -70,15 +90,24 @@ export default function DashboardLayout({ children }) {
                     </nav>
                 </div>
 
-                <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-slate-200 dark:border-slate-800">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-semibold">
-                            A
+                <div className="absolute bottom-0 left-0 right-0 border-t border-slate-200 dark:border-slate-800">
+                    <div className="p-4">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-semibold text-sm">
+                                {admin?.name ? admin.name.charAt(0).toUpperCase() : 'A'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{admin?.name || 'Admin User'}</p>
+                                <p className="text-xs text-slate-500 truncate">{admin?.email || 'admin@example.com'}</p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="font-medium text-sm">Admin User</p>
-                            <p className="text-xs text-slate-500">admin@f1jobs.com</p>
-                        </div>
+                        <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors group"
+                        >
+                            <LogOut className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            <span className="font-medium">Logout</span>
+                        </button>
                     </div>
                 </div>
             </motion.aside>

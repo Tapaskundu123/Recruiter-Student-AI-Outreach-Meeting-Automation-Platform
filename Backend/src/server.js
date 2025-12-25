@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import config, { validateConfig } from './config/index.js';
@@ -8,11 +9,20 @@ import prisma from './db/client.js';
 
 // Import routes
 import waitlistRoutes from './routes/waitlist.js';
-import scrapersRoutes from './routes/scrapers.js';
+import csvRoutes from './routes/csv.js';
 import campaignsRoutes from './routes/campaigns.js';
 import meetingsRoutes from './routes/meetings.js';
 import analyticsRoutes from './routes/analytics.js';
 import adminRoutes from './routes/admin.js';
+import authRoutes from './routes/auth.js';
+import publicRoutes from './routes/public.js';
+import calendarRoutes from './routes/calendar.js';
+import dashboardRoutes from './routes/dashboard.js';
+import eventsRoutes from './routes/events.js';
+import availabilityRoutes from './routes/availability.js';
+import emailRoutes from './routes/email.js';
+import documentsRoutes from './routes/documents.js';
+import adminAuthRoutes from './routes/adminAuth.js';
 
 const app = express();
 
@@ -31,6 +41,7 @@ app.use(cors({
     credentials: true
 }));
 app.use(morgan(config.NODE_ENV === 'development' ? 'dev' : 'combined'));
+app.use(cookieParser()); // Add cookie parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -56,11 +67,20 @@ app.get('/health', async (req, res) => {
 
 // API Routes
 app.use(`${config.API_PREFIX}/waitlist`, waitlistRoutes);
-app.use(`${config.API_PREFIX}/scrapers`, scrapersRoutes);
+app.use(`${config.API_PREFIX}/csv`, csvRoutes);
 app.use(`${config.API_PREFIX}/campaigns`, campaignsRoutes);
 app.use(`${config.API_PREFIX}/meetings`, meetingsRoutes);
 app.use(`${config.API_PREFIX}/analytics`, analyticsRoutes);
 app.use(`${config.API_PREFIX}/admin`, adminRoutes);
+app.use(`${config.API_PREFIX}/auth`, authRoutes);
+app.use(`${config.API_PREFIX}/public`, publicRoutes);
+app.use(`${config.API_PREFIX}/calendar`, calendarRoutes);
+app.use(`${config.API_PREFIX}/dashboard`, dashboardRoutes);
+app.use(`${config.API_PREFIX}/events`, eventsRoutes);
+app.use(`${config.API_PREFIX}/availability`, availabilityRoutes);
+app.use(`${config.API_PREFIX}/email`, emailRoutes);
+app.use(`${config.API_PREFIX}/documents`, documentsRoutes);
+app.use(`${config.API_PREFIX}/auth/admin`, adminAuthRoutes);
 
 // 404 Handler
 app.use((req, res) => {

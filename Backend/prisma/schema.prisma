@@ -17,13 +17,20 @@ model Recruiter {
   linkedIn      String?
   country       String?
   field         String?   // e.g., "Technology", "Finance", "Healthcare"
+  platform      String?   // e.g., "CSV Upload", "Manual Entry"
   status        String    @default("active") // active, inactive, bounced
-  scrapedAt     DateTime  @default(now())
   enrichedData  Json?     // Additional AI-enriched data
+
+  // Google Calendar Integration
+  googleRefreshToken String?
+  googleAccessToken  String?
+  googleTokenExpiry  DateTime?
+  googleCalendarId   String?   @default("primary")
   
   // Relations
   campaigns     CampaignRecipient[]
   meetings      Meeting[] @relation("RecruiterMeetings")
+  availabilitySlots AvailabilitySlot[] @relation("RecruiterAvailability")
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -43,10 +50,14 @@ model Student {
   major             String?
   graduationYear    Int?
   country           String?
+  degree            String?   // e.g., "B.Tech", "M.Tech", "BCA"
+  platform          String?   // e.g., "GitHub", "University Directory"
   linkedIn          String?
+  github            String?   // GitHub profile URL
   resume            String?   // URL or path to resume
   status            String    @default("waitlist") // waitlist, contacted, scheduled, completed
   waitlistJoinedAt  DateTime  @default(now())
+  enrichedData      Json?     // Additional data including CSV import data
   
   // Relations
   campaigns         CampaignRecipient[]
@@ -120,6 +131,35 @@ model CampaignRecipient {
   @@index([studentId])
 }
 
+// Recruiter Availability Slots (marked by recruiter, confirmed by admin)
+model AvailabilitySlot {
+  id            String    @id @default(uuid())
+  recruiterId   String
+  
+  startTime     DateTime
+  endTime       DateTime
+  duration      Int       // in minutes
+  timezone      String    @default("America/New_York")
+  
+  // Status tracking
+  status        String    @default("pending") // pending, confirmed, cancelled
+  confirmedBy   String?   // Admin ID who confirmed
+  
+  // Related meeting (once admin assigns student)
+  meetingId     String?   @unique
+  meeting       Meeting?  @relation("AvailabilityMeeting", fields: [meetingId], references: [id])
+  
+  // Relations
+  recruiter     Recruiter @relation("RecruiterAvailability", fields: [recruiterId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([recruiterId])
+  @@index([startTime])
+  @@index([status])
+}
+
 // Meeting Model
 model Meeting {
   id                String    @id @default(uuid())
@@ -128,6 +168,8 @@ model Meeting {
   
   title             String
   description       String?   @db.Text
+  eventField        String?   // e.g., "Technology", "Finance", "Healthcare"
+  keyAreas          String[]  @default([]) // Key topics/areas to discuss
   scheduledTime     DateTime
   duration          Int       @default(30) // in minutes
   timezone          String    @default("America/New_York")
@@ -144,6 +186,7 @@ model Meeting {
   // Relations
   recruiter         Recruiter @relation("RecruiterMeetings", fields: [recruiterId], references: [id], onDelete: Cascade)
   student           Student   @relation("StudentMeetings", fields: [studentId], references: [id], onDelete: Cascade)
+  availabilitySlot  AvailabilitySlot? @relation("AvailabilityMeeting")
   
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -154,24 +197,60 @@ model Meeting {
   @@index([status])
 }
 
-// Scraping Log Model
-model ScrapingLog {
+// CSV Upload Model
+model CsvUpload {
   id            String    @id @default(uuid())
-  jobType       String    // "recruiter", "student"
-  target        String    // URL or platform being scraped
-  status        String    @default("running") // running, completed, failed, cancelled
-  recordsFound  Int       @default(0)
-  recordsSaved  Int       @default(0)
-  errors        Json?     // Error logs
   
-  startedAt     DateTime  @default(now())
-  completedAt   DateTime?
+  // File information
+  filename      String    // Generated unique filename
+  originalName  String    // Original filename from user
+  fileSize      Int       // Size in bytes
+  filePath      String    // Path to stored file
+  
+  // Upload metadata
+  recordType    String    // "recruiter" or "student"
+  uploadedBy    String?   // Admin ID (if auth implemented)
+  
+  // Processing status
+  status        String    @default("pending") // pending, processing, completed, failed
+  totalRecords  Int       @default(0)
+  successCount  Int       @default(0)
+  errorCount    Int       @default(0)
+  
+  // Timestamps
+  uploadedAt    DateTime  @default(now())
+  processedAt   DateTime?
+  
+  // Additional metadata
+  metadata      Json?     // Column mappings, validation rules, etc.
+  
+  // Relations
+  errors        CsvUploadError[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([recordType])
+  @@index([status])
+  @@index([uploadedAt])
+}
+
+// CSV Upload Error Model
+model CsvUploadError {
+  id            String    @id @default(uuid())
+  csvUploadId   String
+  
+  rowNumber     Int
+  errorMessage  String    @db.Text
+  rowData       Json?     // The problematic row data
+  fieldName     String?   // Specific field that caused error
+  
+  // Relations
+  csvUpload     CsvUpload @relation(fields: [csvUploadId], references: [id], onDelete: Cascade)
   
   createdAt     DateTime  @default(now())
   
-  @@index([jobType])
-  @@index([status])
-  @@index([startedAt])
+  @@index([csvUploadId])
 }
 
 // Admin User Model (for dashboard access)
@@ -188,4 +267,41 @@ model Admin {
   updatedAt     DateTime  @updatedAt
   
   @@index([email])
+}
+
+// Email Template Model (for reusable email templates)
+model EmailTemplate {
+  id          String   @id @default(uuid())
+  name        String   // "Recruiter Outreach", "Student Welcome", etc.
+  category    String   // "recruiter", "student", "both"
+  subject     String
+  content     String   @db.Text // Handlebars template with placeholders
+  description String?
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([category])
+  @@index([isActive])
+}
+
+// Document Model (for PDF/text documents uploaded for RAG context)
+model Document {
+  id          String   @id @default(uuid())
+  fileName    String   // Original filename
+  fileSize    Int      // Size in bytes
+  category    String   @default("general") // "app_info", "company_info", "product_details", "general", etc.
+  uploadedBy  String?  // Admin ID who uploaded (if auth implemented)
+  uploadDate  DateTime @default(now())
+  status      String   @default("processing") // "processing", "ready", "failed"
+  chunkCount  Int      @default(0) // Number of text chunks created
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([category])
+  @@index([status])
+  @@index([uploadDate])
+  @@map("documents")
 }

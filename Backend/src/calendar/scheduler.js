@@ -8,6 +8,7 @@ import { addMeetingReminderJob } from '../jobs/meetingJobs.js';
  */
 export async function scheduleMeeting({
     recruiterId,
+    refreshToken, // Receive refresh token
     studentId,
     recruiterEmail,
     studentEmail,
@@ -16,7 +17,9 @@ export async function scheduleMeeting({
     scheduledTime,
     duration,
     title,
-    description
+    description,
+    eventField,
+    keyAreas
 }) {
     try {
         const startTime = new Date(scheduledTime);
@@ -24,6 +27,7 @@ export async function scheduleMeeting({
 
         // Create Google Calendar event
         const calendarResult = await createCalendarEvent({
+            refreshToken, // Pass refresh token
             summary: title,
             description: description || `Meeting between ${recruiterName} and ${studentName}`,
             startDateTime: startTime,
@@ -42,6 +46,8 @@ export async function scheduleMeeting({
                 studentId,
                 title,
                 description,
+                eventField,
+                keyAreas: keyAreas || [],
                 scheduledTime: startTime,
                 duration,
                 googleMeetLink: calendarResult.googleMeetLink,
@@ -50,25 +56,47 @@ export async function scheduleMeeting({
             }
         });
 
-        // Send confirmation emails
-        const meetingDetails = {
-            title,
-            scheduledTime: startTime.toLocaleString(),
+        // Send confirmation emails with enhanced template
+        const eventDetails = {
+            eventName: title,
+            scheduledTime: startTime.toLocaleString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZoneName: 'short'
+            }),
             duration,
             googleMeetLink: calendarResult.googleMeetLink,
-            description
+            description,
+            eventField,
+            keyAreas: keyAreas || [],
+            recipientName: recruiterName,
+            organizerName: studentName
         };
 
+        const { sendEventInvitation } = await import('../email/emailClient.js');
+
         await Promise.all([
-            sendMeetingConfirmation({
+            sendEventInvitation({
                 to: recruiterEmail,
-                type: 'confirmation',
-                meetingDetails
+                type: 'invitation',
+                eventDetails: {
+                    ...eventDetails,
+                    recipientName: recruiterName,
+                    organizerName: studentName
+                }
             }),
-            sendMeetingConfirmation({
+            sendEventInvitation({
                 to: studentEmail,
-                type: 'confirmation',
-                meetingDetails
+                type: 'invitation',
+                eventDetails: {
+                    ...eventDetails,
+                    recipientName: studentName,
+                    organizerName: recruiterName
+                }
             })
         ]);
 
@@ -78,13 +106,31 @@ export async function scheduleMeeting({
             data: { confirmationSent: true }
         });
 
-        // Schedule reminder job
+        // Schedule reminder jobs (both 24h and 1h)
         await addMeetingReminderJob({
             meetingId: meeting.id,
             scheduledTime: startTime,
             recruiterEmail,
             studentEmail,
-            meetingDetails
+            meetingDetails: {
+                eventName: title,
+                scheduledTime: startTime.toLocaleString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZoneName: 'short'
+                }),
+                duration,
+                googleMeetLink: calendarResult.googleMeetLink,
+                description,
+                eventField,
+                keyAreas: keyAreas || [],
+                recruiterName,
+                studentName
+            }
         });
 
         return meeting;

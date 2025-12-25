@@ -1,0 +1,5 @@
+full_name,email_address,contact_number,institution,field_of_study,year_of_graduation,current_location,qualification,gpa,skills
+Alice Johnson,alice.johnson@university.edu,+1-234-567-8900,MIT,Computer Science,2025,USA,B.Tech,3.9,"Python, JavaScript, React"
+Bob Lee,bob.lee@college.edu,,Stanford University,Data Science,2024,USA,M.S.,3.8,"Machine Learning, SQL"
+Carol Martinez,carol.m@uni.ac.uk,+44-123-456-7890,Oxford,Electrical Engineering,2026,UK,B.Eng,3.7,"Circuit Design, CAD"
+David Chen,david.chen@school.edu,+1-555-123-4567,UC Berkeley,Business Administration,2025,USA,MBA,3.85,"Marketing, Strategy"

@@ -1,34 +1,60 @@
 import { google } from 'googleapis';
 import config from '../config/index.js';
 
-let oauth2Client;
-let calendar;
-
 /**
- * Initialize Google Calendar API
+ * Initialize Google Calendar API client for a specific user
+ * @param {string} refreshToken - User's refresh token
  */
-function initCalendar() {
-    if (calendar) return calendar;
+function initCalendar(refreshToken) {
+    if (!refreshToken) {
+        throw new Error('Refresh token required for calendar initialization');
+    }
 
-    oauth2Client = new google.auth.OAuth2(
+    const oauth2Client = new google.auth.OAuth2(
         config.GOOGLE.CLIENT_ID,
         config.GOOGLE.CLIENT_SECRET,
         config.GOOGLE.REDIRECT_URI
     );
 
     oauth2Client.setCredentials({
-        refresh_token: config.GOOGLE.REFRESH_TOKEN
+        refresh_token: refreshToken
     });
 
-    calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    return google.calendar({ version: 'v3', auth: oauth2Client });
+}
 
-    return calendar;
+/**
+ * List calendar events
+ * @param {Object} params - { refreshToken, timeMin, timeMax }
+ */
+export async function listEvents({ refreshToken, timeMin, timeMax }) {
+    try {
+        const calendarApi = initCalendar(refreshToken);
+
+        const response = await calendarApi.events.list({
+            calendarId: 'primary',
+            timeMin: timeMin.toISOString(),
+            timeMax: timeMax.toISOString(),
+            singleEvents: true,
+            orderBy: 'startTime',
+        });
+
+        return {
+            success: true,
+            events: response.data.items
+        };
+    } catch (error) {
+        console.error('List events error:', error.message);
+        return { success: false, error: error.message };
+    }
 }
 
 /**
  * Create calendar event with Google Meet
+ * @param {Object} tokens - { refreshToken }
  */
 export async function createCalendarEvent({
+    refreshToken,
     summary,
     description,
     startDateTime,
@@ -36,7 +62,7 @@ export async function createCalendarEvent({
     attendees
 }) {
     try {
-        const calendarApi = initCalendar();
+        const calendarApi = initCalendar(refreshToken);
 
         const event = {
             summary,
@@ -94,9 +120,9 @@ export async function createCalendarEvent({
 /**
  * Update calendar event
  */
-export async function updateCalendarEvent(eventId, updates) {
+export async function updateCalendarEvent({ refreshToken, eventId, updates }) {
     try {
-        const calendarApi = initCalendar();
+        const calendarApi = initCalendar(refreshToken);
 
         const response = await calendarApi.events.patch({
             calendarId: 'primary',
@@ -118,9 +144,9 @@ export async function updateCalendarEvent(eventId, updates) {
 /**
  * Delete calendar event
  */
-export async function deleteCalendarEvent(eventId) {
+export async function deleteCalendarEvent({ refreshToken, eventId }) {
     try {
-        const calendarApi = initCalendar();
+        const calendarApi = initCalendar(refreshToken);
 
         await calendarApi.events.delete({
             calendarId: 'primary',
@@ -138,9 +164,9 @@ export async function deleteCalendarEvent(eventId) {
 /**
  * Get free/busy information
  */
-export async function getFreeBusy({ timeMin, timeMax, emails }) {
+export async function getFreeBusy({ refreshToken, timeMin, timeMax, emails }) {
     try {
-        const calendarApi = initCalendar();
+        const calendarApi = initCalendar(refreshToken);
 
         const response = await calendarApi.freebusy.query({
             resource: {
@@ -164,5 +190,6 @@ export default {
     createCalendarEvent,
     updateCalendarEvent,
     deleteCalendarEvent,
-    getFreeBusy
+    getFreeBusy,
+    listEvents
 };
