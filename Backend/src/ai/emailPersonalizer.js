@@ -155,101 +155,163 @@ Return ONLY the JSON object, no other text.
 /**
  * Refine an uploaded HTML template to make it look professional and human-written
  * Includes anti-spam measures and email best practices
+ * Returns ONLY clean HTML, no comments or markdown
  */
 export async function refineEmailTemplate(htmlContent) {
   try {
     const prompt = `
-You are an expert email designer and copywriter specializing in professional, deliverable emails.
+You are an expert email designer. Transform this email template into professional, deliverable HTML.
 
-Analyze and refine the following HTML email template to make it look professional, human-written, and spam-filter friendly.
-
-HTML TEMPLATE:
+INPUT EMAIL:
 ${htmlContent}
 
-REFINEMENT REQUIREMENTS:
+CRITICAL OUTPUT RULES:
+✓ Return ONLY complete, valid HTML code
+✓ Start with <!DOCTYPE html>, end with </html>
+✓ NO comments, NO markdown blocks, NO explanations
+✓ Ensure ALL HTML tags are properly closed
 
-1. **Professional Visual Design**:
-   - Add modern styling with inline CSS (required for email clients)
-   - Use professional, web-safe fonts (Arial, Helvetica, Georgia, sans-serif)
-   - Ensure responsive design with max-width: 600px
-   - Add proper spacing and padding (16-24px)
-   - Use a professional color scheme (avoid bright reds, excessive colors)
-   - Add subtle borders and backgrounds where appropriate
+APPLY THESE IMPROVEMENTS:
 
-2. **Email Client Compatibility**:
-   - Use table-based layouts for maximum compatibility
-   - All CSS must be inline
-   - Avoid external resources or scripts
-   - Include proper DOCTYPE and meta tags
-   - Add alt text for any images
-   - Use background colors sparingly
+1. **Email-Safe Structure**:
+   - Table-based layout (width: 600px max)
+   - Inline CSS only (style="...")
+   - Professional fonts: Arial, Helvetica, sans-serif
+   - Centered content, 16-24px padding
+   - DOCTYPE + viewport meta tags
 
-3. **Anti-Spam Best Practices**:
-   - AVOID spam trigger words like: FREE, URGENT, ACT NOW, LIMITED TIME, CLICK HERE, $$$, !!!, BUY NOW, GUARANTEED
-   - Use a balanced text-to-image ratio (mostly text)
-   - Avoid excessive capitalization
-   - Include proper sender context
-   - Use natural, conversational language
-   - Avoid excessive links (max 2-3)
-   - Include a clear, visible unsubscribe option
-   - Maintain proper HTML structure with semantic tags
+2. **ANTI-SPAM (CRITICAL)**:
+   Replace/remove these words:
+   ❌ FREE, URGENT, ACT NOW, LIMITED TIME, CLICK HERE, BUY NOW, GUARANTEED, !!!, $$$
+   ✓ Use natural, conversational language
+   ✓ Max 2-3 links total
+   ✓ Descriptive link text (NOT "click here")
+   ✓ Include unsubscribe link in footer
 
-4. **Professional Copywriting**:
-   - Make the text sound natural and human
-   - Improve grammar and flow
-   - Add warmth to the tone while keeping it professional
-   - Ensure proper paragraph breaks and readability
-   - Use clear, concise sentences
-   - Add a compelling but professional subject line in an HTML comment
+3. **Professional Design**:
+   - Clean color palette: Blues (#007bff), grays (#666), white backgrounds
+   - Button CTAs: padding 12px 24px, border-radius 5px, professional text
+   - Proper spacing between sections
+   - Mobile-responsive (max-width: 100%)
 
-5. **Personalization Placeholders**:
-   - Add Handlebars placeholders where appropriate:
-     * {{name}} for recipient name
-     * {{company}} for company name
-     * {{university}} for university name
-     * {{email}} for recipient email
-     * etc.
+4. **Personalization**:
+   Add Handlebars placeholders: {{name}}, {{company}}, {{university}}, {{email}}
+   Use naturally in greetings and content
 
-6. **Email Deliverability**:
-   - Add a plain text version in HTML comments for reference
-   - Include proper header structure (h1, h2, p tags)
-   - Use semantic HTML5 tags
-   - Ensure proper encoding (UTF-8)
+5. **Complete HTML Template Structure**:
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Professional Subject Line</title>
+</head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background-color:#f4f4f4;">
+  <table role="presentation" style="width:100%;border-collapse:collapse;">
+    <tr><td align="center" style="padding:40px 0;">
+      <table role="presentation" style="width:600px;max-width:100%;background:#fff;border-collapse:collapse;">
+        <tr><td style="padding:40px 30px;">
+          <!-- EMAIL CONTENT HERE -->
+        </td></tr>
+        <tr><td style="padding:20px 30px;background:#f8f8f8;text-align:center;font-size:12px;color:#666;">
+          <a href="#" style="color:#007bff;text-decoration:none;">Unsubscribe</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
 
-7. **CTA Best Practices**:
-   - Make call-to-action buttons obvious but not aggressive
-   - Use button-style links (not just text links)
-   - Clear, action oriented but professional CTA text
-
-Return ONLY the refined HTML template with all improvements applied. Do not include any explanations or markdown code blocks.
+IMPORTANT: Return the COMPLETE HTML from <!DOCTYPE to </html>. Do NOT truncate.
 `;
 
-    const model = genAI.getGenerativeModel({ model: config.GEMINI_MODEL || "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: config.GEMINI_MODEL || "gemini-1.5-flash" });
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature: 0.6,
-        maxOutputTokens: 3000,
+        temperature: 0.3, // Lower for consistency
+        maxOutputTokens: 8000, // Increased to prevent truncation
       },
     });
 
     let refinedHtml = result.response.text().trim();
 
-    // Remove markdown code block if present
-    const htmlMatch = refinedHtml.match(/```html\n?([\s\S]*?)```/);
-    if (htmlMatch) {
-      refinedHtml = htmlMatch[1].trim();
+    // Remove markdown code blocks
+    refinedHtml = refinedHtml.replace(/```html\n?/gi, '');
+    refinedHtml = refinedHtml.replace(/```\n?/g, '');
+
+    // Remove HTML comments
+    refinedHtml = refinedHtml.replace(/<!--[\s\S]*?-->/g, '');
+
+    // Extract HTML content
+    const doctypeMatch = refinedHtml.match(/(<!DOCTYPE[\s\S]*<\/html>)/i);
+    if (doctypeMatch) {
+      refinedHtml = doctypeMatch[1];
+    } else {
+      const htmlMatch = refinedHtml.match(/(<html[\s\S]*<\/html>)/i);
+      if (htmlMatch) {
+        refinedHtml = htmlMatch[1];
+      }
     }
 
-    // Additional cleanup - remove any remaining markdown
-    refinedHtml = refinedHtml.replace(/```[\s\S]*?```/g, '');
+    refinedHtml = refinedHtml.trim();
 
+    // Validate HTML completeness
+    if (!refinedHtml.includes('<html')) {
+      console.error('AI response missing <html> tag');
+      throw new Error('Incomplete HTML - missing html tag');
+    }
+
+    if (!refinedHtml.includes('</html>')) {
+      console.error('AI response missing </html> closing tag - HTML was truncated');
+      throw new Error('Incomplete HTML - missing closing html tag (likely truncated)');
+    }
+
+    if (!refinedHtml.includes('</body>')) {
+      console.error('AI response missing </body> tag');
+      throw new Error('Incomplete HTML - missing closing body tag');
+    }
+
+    // Check for balanced table tags
+    const tableOpenCount = (refinedHtml.match(/<table/gi) || []).length;
+    const tableCloseCount = (refinedHtml.match(/<\/table>/gi) || []).length;
+
+    if (tableOpenCount !== tableCloseCount) {
+      console.error(`Unbalanced table tags: ${tableOpenCount} open, ${tableCloseCount} close`);
+      throw new Error('Incomplete HTML - unbalanced table tags (likely truncated)');
+    }
+
+    console.log('✓ Email template refined successfully, HTML validation passed');
     return refinedHtml;
 
   } catch (error) {
-    console.error("Template refinement error (Gemini):", error.message);
-    // Return original content if refinement fails
-    return htmlContent;
+    console.error("Template refinement error:", error.message);
+
+    // If refinement failed, wrap original content in proper email structure
+    console.log('Falling back to structured wrapper for original content');
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Template</title>
+</head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background-color:#f4f4f4;">
+  <table role="presentation" style="width:100%;border-collapse:collapse;">
+    <tr><td align="center" style="padding:40px 0;">
+      <table role="presentation" style="width:600px;max-width:100%;background:#fff;border-collapse:collapse;">
+        <tr><td style="padding:40px 30px;">
+          ${htmlContent}
+        </td></tr>
+        <tr><td style="padding:20px 30px;background:#f8f8f8;text-align:center;font-size:12px;color:#666;">
+          <a href="#" style="color:#007bff;text-decoration:none;">Unsubscribe</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
   }
 }
 

@@ -177,10 +177,10 @@ export default function LeadManager() {
                                 <span className="text-sm font-medium px-2">
                                     {activeTab === 'recruiters' ? selectedRecruiters.length : selectedStudents.length} selected
                                 </span>
-                                <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700" 
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700"
                                     onClick={() => setShowEmailComposer(true)}
                                 >
                                     <Mail className="w-4 h-4 mr-1" /> Send Email
@@ -387,6 +387,7 @@ export default function LeadManager() {
             {/* Email Composer Modal */}
             {showEmailComposer && (
                 <EmailComposer
+                    autoGenerate={true}
                     recipients={[
                         // Add recruiters
                         ...recruitersData?.data

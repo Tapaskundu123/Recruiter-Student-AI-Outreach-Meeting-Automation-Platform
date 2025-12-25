@@ -1,7 +1,7 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import prisma from '../db/client.js';
-import { sendWaitlistEmail } from '../utils/mailer.js';
+import { sendWelcomeEmail } from '../email/emailClient.js';
 
 const router = express.Router();
 
@@ -72,15 +72,12 @@ router.post(
                 }
             });
 
-            // Send confirmation email (fire-and-forget: don't block response if email fails)
-            sendWaitlistEmail({
+            // Send confirmation email using Brevo (fire-and-forget)
+            sendWelcomeEmail({
                 to: student.email,
-                name: student.name,
-                university: student.university,
-                linkedIn: student.linkedIn
+                name: student.name
             }).catch(emailError => {
                 console.error('Failed to send waitlist confirmation email:', emailError);
-                // Optional: log to monitoring tool (e.g., Sentry)
                 // Do NOT throw — we already succeeded in saving to DB
             });
 
